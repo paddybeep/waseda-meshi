@@ -3030,7 +3030,7 @@ function filteredStores(q=""){
 
 // ─── ACCORDION ───────────────────────────────────────────────
 function toggleAccordion(idx){
-  [0,1,2].forEach(i=>{
+  [0,1,2,3].forEach(i=>{
     const el = document.getElementById("acc"+i);
     if(!el) return;
     if(i===idx) el.classList.toggle("open");
