@@ -3307,7 +3307,7 @@ function searchFiltered(){
     if(activeSearchGenre && s.genre !== activeSearchGenre) return false;
     if(activeCampus) {
       const c = CAMPUS_CENTERS[activeCampus];
-      if(distKm(s.lat, s.lng, c.lat, c.lng) > 0.6) return false;
+      if(distKm(s.lat, s.lng, c.lat, c.lng) > 0.3) return false;
     }
     return true;
   });
