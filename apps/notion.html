@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notion Clone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar-w:240px;
+  --sidebar-bg:#f7f6f3;
+  --sidebar-hover:#ebebea;
+  --sidebar-active:#e8e7e3;
+  --text:#37352f;
+  --text-muted:#9b9a97;
+  --text-light:#cfceca;
+  --border:#e8e7e4;
+  --bg:#ffffff;
+  --accent:#2383e2;
+  --danger:#eb5757;
+  --code-bg:#f1f1ef;
+  --selection:#d3e4f7;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);background:var(--bg);display:flex;height:100vh;overflow:hidden;font-size:16px}
+
+/* ===== SIDEBAR ===== */
+#sidebar{
+  width:var(--sidebar-w);flex-shrink:0;background:var(--sidebar-bg);
+  display:flex;flex-direction:column;border-right:1px solid var(--border);
+  height:100vh;overflow:hidden;transition:width .2s;
+}
+#sidebar.collapsed{width:0}
+.sidebar-header{padding:12px 14px 6px;display:flex;align-items:center;justify-content:space-between}
+.workspace-name{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;cursor:default}
+.workspace-name .emoji{font-size:16px}
+.sidebar-toggle{width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:4px;color:var(--text-muted);font-size:14px;display:grid;place-items:center}
+.sidebar-toggle:hover{background:var(--sidebar-hover)}
+
+.sidebar-section{padding:4px 8px;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;margin-top:8px;margin-bottom:2px;padding-left:14px}
+
+.page-item{
+  display:flex;align-items:center;padding:4px 8px 4px 14px;border-radius:4px;
+  cursor:pointer;font-size:14px;color:var(--text);margin:0 4px;
+  position:relative;group:true;
+}
+.page-item:hover{background:var(--sidebar-hover)}
+.page-item.active{background:var(--sidebar-active)}
+.page-item .page-icon{width:18px;height:18px;display:grid;place-items:center;font-size:13px;margin-right:6px;flex-shrink:0}
+.page-item .page-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page-item .page-actions{display:none;gap:2px}
+.page-item:hover .page-actions{display:flex}
+.page-item .page-actions button{
+  width:20px;height:20px;border:none;background:none;cursor:pointer;border-radius:3px;
+  color:var(--text-muted);font-size:12px;display:grid;place-items:center;
+}
+.page-item .page-actions button:hover{background:var(--sidebar-active);color:var(--danger)}
+
+.btn-new-page{
+  display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:14px;color:var(--text-muted);
+  cursor:pointer;border:none;background:none;width:100%;text-align:left;border-radius:4px;margin:2px 4px;
+}
+.btn-new-page:hover{background:var(--sidebar-hover);color:var(--text)}
+.sidebar-bottom{margin-top:auto;padding:8px 4px;border-top:1px solid var(--border)}
+
+/* ===== MAIN ===== */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#topbar{height:45px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--border);gap:8px;flex-shrink:0}
+.topbar-toggle{width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;color:var(--text-muted);font-size:16px;display:grid;place-items:center}
+.topbar-toggle:hover{background:var(--sidebar-hover)}
+.topbar-breadcrumb{font-size:14px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+.topbar-breadcrumb span{color:var(--text);font-weight:500}
+
+#editor-wrap{flex:1;overflow-y:auto;padding:40px 0 120px}
+#editor{max-width:720px;margin:0 auto;padding:0 96px}
+
+/* ===== PAGE TITLE ===== */
+.page-title-area{margin-bottom:24px}
+.page-cover-emoji{font-size:60px;line-height:1;margin-bottom:12px;cursor:default;display:inline-block}
+.page-title-input{
+  font-size:40px;font-weight:700;color:var(--text);border:none;outline:none;
+  width:100%;resize:none;overflow:hidden;line-height:1.2;background:transparent;
+  font-family:inherit;
+}
+.page-title-input::placeholder{color:var(--text-light)}
+
+/* ===== BLOCKS ===== */
+.block{position:relative;padding:2px 0;display:flex;align-items:flex-start;gap:4px}
+.block:hover .block-handle{opacity:1}
+.block-handle{
+  position:absolute;left:-28px;top:4px;width:24px;height:24px;
+  display:grid;place-items:center;opacity:0;cursor:grab;
+  color:var(--text-muted);font-size:12px;border-radius:4px;transition:opacity .1s;
+}
+.block-handle:hover{background:var(--sidebar-hover)}
+.block-content{flex:1;outline:none;min-height:1.5em;word-break:break-word;line-height:1.6;white-space:pre-wrap}
+.block-content:empty:before{content:attr(data-placeholder);color:var(--text-light);pointer-events:none}
+
+/* Block styles */
+.block[data-type="h1"] .block-content{font-size:30px;font-weight:700;margin-top:20px;margin-bottom:2px}
+.block[data-type="h2"] .block-content{font-size:24px;font-weight:700;margin-top:16px;margin-bottom:2px}
+.block[data-type="h3"] .block-content{font-size:18px;font-weight:600;margin-top:12px;margin-bottom:2px}
+.block[data-type="p"]  .block-content{font-size:16px}
+.block[data-type="quote"] .block-content{
+  border-left:3px solid var(--text);padding-left:14px;color:var(--text-muted);
+  font-style:italic;
+}
+.block[data-type="code"] .block-content{
+  background:var(--code-bg);border-radius:4px;padding:10px 14px;
+  font-family:'Cascadia Code','Courier New',monospace;font-size:14px;
+  display:block;white-space:pre;overflow-x:auto;line-height:1.7;
+}
+.block[data-type="divider"]{padding:12px 0}
+.block[data-type="divider"] .block-content{height:1px;background:var(--border);pointer-events:none}
+.block[data-type="bullet"] .block-content{padding-left:4px}
+.block[data-type="bullet"]:before{content:"•";color:var(--text-muted);padding-right:8px;padding-top:2px;flex-shrink:0;line-height:1.6}
+.block[data-type="numbered"]:before{color:var(--text-muted);padding-right:8px;padding-top:2px;flex-shrink:0;line-height:1.6}
+.block[data-type="todo"]{align-items:flex-start;gap:6px}
+.block[data-type="todo"] .todo-check{
+  width:16px;height:16px;border:1.5px solid var(--text-muted);border-radius:3px;
+  flex-shrink:0;cursor:pointer;margin-top:5px;display:grid;place-items:center;font-size:11px;
+}
+.block[data-type="todo"].checked .todo-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.block[data-type="todo"].checked .block-content{color:var(--text-muted);text-decoration:line-through}
+
+/* ===== SLASH MENU ===== */
+#slash-menu{
+  position:fixed;background:#fff;border:1px solid var(--border);border-radius:8px;
+  box-shadow:0 8px 32px rgba(0,0,0,.12);padding:6px;width:260px;z-index:1000;
+  display:none;max-height:320px;overflow-y:auto;
+}
+#slash-menu.visible{display:block}
+.slash-item{
+  display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;
+  cursor:pointer;font-size:14px;
+}
+.slash-item:hover,.slash-item.selected{background:var(--sidebar-hover)}
+.slash-item .si-icon{
+  width:32px;height:32px;background:var(--code-bg);border-radius:6px;
+  display:grid;place-items:center;font-size:16px;flex-shrink:0;
+}
+.slash-item .si-info .si-label{font-weight:500;color:var(--text)}
+.slash-item .si-info .si-desc{font-size:12px;color:var(--text-muted)}
+.slash-group{font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;padding:8px 8px 4px;margin-top:4px}
+
+/* ===== EMPTY STATE ===== */
+.no-page{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:12px}
+.no-page .big{font-size:48px}
+.no-page p{font-size:15px}
+.no-page button{padding:8px 20px;background:var(--text);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+
+/* scrollbar */
+*::-webkit-scrollbar{width:6px;height:6px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+*::-webkit-scrollbar-thumb:hover{background:var(--text-light)}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="workspace-name"><span class="emoji">🚀</span> マイノート</div>
+    <button class="sidebar-toggle" title="サイドバーを閉じる" onclick="toggleSidebar()">✕</button>
+  </div>
+  <div class="sidebar-section">ページ</div>
+  <div id="page-list"></div>
+  <button class="btn-new-page" onclick="newPage()">＋ 新しいページ</button>
+  <div class="sidebar-bottom">
+    <div class="page-item" onclick="newPage()">
+      <div class="page-icon">📄</div>
+      <div class="page-name">新しいページ</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <button class="topbar-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-breadcrumb" id="breadcrumb">ページを選択してください</div>
+  </div>
+  <div id="editor-wrap">
+    <div id="editor"></div>
+  </div>
+</div>
+
+<!-- SLASH MENU -->
+<div id="slash-menu"></div>
+
+<script>
+// ===== DATA =====
+let db = JSON.parse(localStorage.getItem('notion-clone') || '{"pages":[]}');
+let currentPageId = null;
+let sidebarOpen = true;
+let slashStart = null;
+let slashSelected = 0;
+const slashItems = [
+  {group:'基本ブロック'},
+  {type:'p',    icon:'¶',  label:'テキスト',     desc:'普通のテキスト'},
+  {type:'h1',   icon:'H1', label:'見出し1',       desc:'大きな見出し'},
+  {type:'h2',   icon:'H2', label:'見出し2',       desc:'中くらいの見出し'},
+  {type:'h3',   icon:'H3', label:'見出し3',       desc:'小さな見出し'},
+  {group:'リスト'},
+  {type:'bullet',  icon:'•',  label:'箇条書き',   desc:'・リスト'},
+  {type:'numbered',icon:'1.', label:'番号付きリスト',desc:'番号リスト'},
+  {type:'todo',    icon:'☑',  label:'ToDoリスト', desc:'チェックボックス'},
+  {group:'その他'},
+  {type:'quote', icon:'❝',  label:'引用',         desc:'引用ブロック'},
+  {type:'code',  icon:'<>', label:'コード',        desc:'コードブロック'},
+  {type:'divider',icon:'—', label:'区切り線',      desc:'横線を挿入'},
+];
+
+// ===== UTILS =====
+function uid(){return Date.now()+Math.random().toString(36).slice(2)}
+function saveDB(){localStorage.setItem('notion-clone',JSON.stringify(db))}
+
+// ===== SIDEBAR =====
+function toggleSidebar(){
+  sidebarOpen=!sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed',!sidebarOpen);
+}
+function renderSidebar(){
+  const el=document.getElementById('page-list');
+  el.innerHTML=db.pages.map(p=>`
+    <div class="page-item ${p.id===currentPageId?'active':''}" onclick="openPage('${p.id}')">
+      <div class="page-icon">${p.icon||'📄'}</div>
+      <div class="page-name">${p.title||'無題'}</div>
+      <div class="page-actions">
+        <button onclick="event.stopPropagation();deletePage('${p.id}')" title="削除">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== PAGES =====
+function newPage(){
+  const page={id:uid(),title:'',icon:'📄',blocks:[{id:uid(),type:'p',content:''}],createdAt:Date.now()};
+  db.pages.unshift(page);saveDB();
+  renderSidebar();openPage(page.id);
+  setTimeout(()=>document.querySelector('.page-title-input')?.focus(),50);
+}
+function deletePage(id){
+  if(!confirm('このページを削除しますか？'))return;
+  db.pages=db.pages.filter(p=>p.id!==id);
+  saveDB();
+  if(currentPageId===id){currentPageId=null;renderEditor();}
+  renderSidebar();
+}
+function openPage(id){
+  currentPageId=id;
+  renderSidebar();
+  renderEditor();
+}
+function currentPage(){return db.pages.find(p=>p.id===currentPageId)}
+
+// ===== EDITOR =====
+function renderEditor(){
+  const el=document.getElementById('editor');
+  const p=currentPage();
+  if(!p){
+    el.innerHTML=`<div class="no-page"><div class="big">📄</div><p>ページがありません</p><button onclick="newPage()">ページを作成</button></div>`;
+    document.getElementById('breadcrumb').innerHTML='ページを選択してください';
+    return;
+  }
+  document.getElementById('breadcrumb').innerHTML=`<span>${p.icon} ${p.title||'無題'}</span>`;
+  // count numbered blocks
+  let numIdx=0;
+  el.innerHTML=`
+    <div class="page-title-area">
+      <div class="page-cover-emoji" id="page-emoji" onclick="pickEmoji()">${p.icon}</div>
+      <textarea class="page-title-input" placeholder="無題" rows="1" id="page-title">${p.title}</textarea>
+    </div>
+    <div id="blocks">
+      ${p.blocks.map(b=>renderBlock(b,p.blocks)).join('')}
+    </div>
+  `;
+  // bind title
+  const titleEl=document.getElementById('page-title');
+  autoResizeTextarea(titleEl);
+  titleEl.addEventListener('input',()=>{
+    p.title=titleEl.value;
+    autoResizeTextarea(titleEl);
+    saveDB();renderSidebar();
+    document.getElementById('breadcrumb').innerHTML=`<span>${p.icon} ${p.title||'無題'}</span>`;
+  });
+  titleEl.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();focusBlock(p.blocks[0]?.id)}
+  });
+  // bind blocks
+  bindBlocks();
+  // numbered list update
+  updateNumbered();
+}
+
+function renderBlock(b){
+  if(b.type==='divider')return`<div class="block" data-type="divider" data-id="${b.id}"><div class="block-handle">⠿</div><div class="block-content"></div></div>`;
+  if(b.type==='todo')return`
+    <div class="block ${b.checked?'checked':''}" data-type="todo" data-id="${b.id}">
+      <div class="block-handle">⠿</div>
+      <div class="todo-check" onclick="toggleTodo('${b.id}')">
+        ${b.checked?'✓':''}
+      </div>
+      <div class="block-content" contenteditable="true" data-placeholder="ToDoを入力..." spellcheck="false">${b.content||''}</div>
+    </div>`;
+  const placeholders={p:'何か入力するか /でコマンド',h1:'見出し1',h2:'見出し2',h3:'見出し3',bullet:'リスト',numbered:'リスト',quote:'引用',code:'コード'};
+  return`
+    <div class="block" data-type="${b.type}" data-id="${b.id}">
+      <div class="block-handle">⠿</div>
+      <div class="block-content" contenteditable="${b.type==='divider'?'false':'true'}" data-placeholder="${placeholders[b.type]||''}" spellcheck="false">${b.content||''}</div>
+    </div>`;
+}
+
+function updateNumbered(){
+  let n=0;
+  document.querySelectorAll('.block[data-type="numbered"]').forEach(el=>{
+    const prev=el.previousElementSibling;
+    if(prev?.dataset.type!=='numbered')n=0;
+    n++;
+    el.style.setProperty('--num',`"${n}."`);
+    el.style.cssText+=(el.style.cssText.includes('--num')?'':'') ;
+    el.querySelectorAll('*').forEach(()=>{});
+    // simpler: use before via dataset
+    el.dataset.num=n;
+    el.style.cssText='';
+  });
+  // apply via CSS trick
+  const style=document.getElementById('num-style')||Object.assign(document.createElement('style'),{id:'num-style'});
+  document.head.appendChild(style);
+  let css='';
+  let ni=1;
+  document.querySelectorAll('.block[data-type="numbered"]').forEach(el=>{
+    const prev=el.previousElementSibling;
+    if(!prev||prev.dataset.type!=='numbered')ni=1; else ni++;
+    el.dataset.ni=ni;
+    css+=`.block[data-type="numbered"][data-id="${el.dataset.id}"]:before{content:"${ni}."}\n`;
+  });
+  style.textContent=css;
+}
+
+function bindBlocks(){
+  document.querySelectorAll('.block-content[contenteditable="true"]').forEach(el=>{
+    const blockEl=el.closest('.block');
+    const id=blockEl?.dataset.id;
+    el.addEventListener('input',()=>{
+      const b=getBlock(id);
+      if(b){b.content=el.innerText;saveDB();}
+      // slash menu
+      const sel=window.getSelection();
+      const text=el.innerText;
+      const off=sel.focusOffset;
+      const slashIdx=text.lastIndexOf('/',off);
+      if(slashIdx>=0&&slashIdx===off-1||(slashIdx>=0&&!text.slice(slashIdx+1,off).includes(' '))){
+        const query=text.slice(slashIdx+1,off);
+        showSlash(el,query,slashIdx);
+      } else {
+        hideSlash();
+      }
+    });
+    el.addEventListener('keydown',e=>handleBlockKey(e,id,el));
+    el.addEventListener('focus',()=>hideSlash());
+  });
+}
+
+function getBlock(id){const p=currentPage();return p?.blocks.find(b=>b.id===id)}
+function focusBlock(id,toEnd=true){
+  const el=document.querySelector(`.block[data-id="${id}"] .block-content`);
+  if(!el)return;el.focus();
+  if(toEnd){const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}
+}
+function focusBlockStart(id){
+  const el=document.querySelector(`.block[data-id="${id}"] .block-content`);
+  if(!el)return;el.focus();
+  const r=document.createRange();r.setStart(el,0);r.collapse(true);
+  const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+}
+
+function handleBlockKey(e,id,el){
+  const p=currentPage();if(!p)return;
+  const idx=p.blocks.findIndex(b=>b.id===id);
+  // slash menu navigation
+  if(slashStart!==null){
+    if(e.key==='ArrowDown'){e.preventDefault();moveSlash(1);return}
+    if(e.key==='ArrowUp'){e.preventDefault();moveSlash(-1);return}
+    if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();applySlash(id,el);return}
+    if(e.key==='Escape'){hideSlash();return}
+  }
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    const newBlock={id:uid(),type:'p',content:''};
+    // for lists, continue same type
+    const cur=p.blocks[idx];
+    if(['bullet','numbered','todo'].includes(cur.type)&&cur.content===''){
+      cur.type='p';renderEditor();focusBlock(id);return;
+    }
+    if(['bullet','numbered'].includes(cur.type))newBlock.type=cur.type;
+    p.blocks.splice(idx+1,0,newBlock);saveDB();renderEditor();
+    setTimeout(()=>focusBlock(newBlock.id),0);
+    return;
+  }
+  if(e.key==='Backspace'){
+    const b=p.blocks[idx];
+    if(el.innerText===''){
+      if(p.blocks.length===1){b.type='p';renderEditor();focusBlock(id);return;}
+      e.preventDefault();
+      p.blocks.splice(idx,1);saveDB();renderEditor();
+      const prevId=p.blocks[idx-1]?.id||p.blocks[0]?.id;
+      if(prevId)setTimeout(()=>focusBlock(prevId),0);
+      return;
+    }
+    // type shortcuts at start
+    if(getCursorOffset(el)===0){
+      const map={'h1':'p','h2':'p','h3':'p','quote':'p','code':'p','bullet':'p','numbered':'p','todo':'p'};
+      if(map[b.type]){e.preventDefault();b.type=map[b.type];renderEditor();focusBlock(id);return;}
+    }
+  }
+  if(e.key==='ArrowUp'&&idx>0){
+    const prevEl=document.querySelector(`.block[data-id="${p.blocks[idx-1].id}"] .block-content`);
+    if(getCursorOffset(el)===0&&prevEl){e.preventDefault();focusBlock(p.blocks[idx-1].id);}
+  }
+  if(e.key==='ArrowDown'&&idx<p.blocks.length-1){
+    const nextEl=document.querySelector(`.block[data-id="${p.blocks[idx+1].id}"] .block-content`);
+    if(nextEl){const range=window.getSelection().getRangeAt(0);const len=el.innerText.length;if(range.startOffset===len){e.preventDefault();focusBlock(p.blocks[idx+1].id);}}
+  }
+  // Tab → indent (bullet)
+  if(e.key==='Tab'){e.preventDefault();}
+  // Markdown shortcuts
+  const text=el.innerText;
+  const shortcuts={
+    '# ':   'h1','## ':'h2','### ':'h3',
+    '- ':'bullet','* ':'bullet','1. ':'numbered',
+    '[] ':'todo','[ ] ':'todo',
+    '> ':'quote','``` ':'code','--- ':'divider',
+  };
+  if(e.key===' '){
+    for(const [trigger,type] of Object.entries(shortcuts)){
+      if(text+' '===trigger||text===trigger.trim()){
+        if(type==='divider'){
+          const b=getBlock(id);b.type='divider';b.content='';
+          el.innerText='';saveDB();renderEditor();return;
+        }
+        e.preventDefault();
+        const b=getBlock(id);b.type=type;b.content='';
+        saveDB();renderEditor();focusBlock(id);return;
+      }
+    }
+  }
+}
+function getCursorOffset(el){const s=window.getSelection();if(!s.rangeCount)return 0;const r=s.getRangeAt(0);return r.startOffset;}
+
+function toggleTodo(id){
+  const b=getBlock(id);if(!b)return;
+  b.checked=!b.checked;saveDB();
+  const blockEl=document.querySelector(`.block[data-id="${id}"]`);
+  if(blockEl){blockEl.classList.toggle('checked',b.checked);blockEl.querySelector('.todo-check').textContent=b.checked?'✓':'';}
+}
+
+// ===== SLASH MENU =====
+function showSlash(el,query,startIdx){
+  slashStart=startIdx;
+  const filtered=slashItems.filter(i=>!i.group&&(!query||i.label.toLowerCase().includes(query)||i.type?.includes(query)));
+  if(!filtered.length){hideSlash();return;}
+  // rebuild with groups
+  let items=[];
+  slashItems.forEach(i=>{
+    if(i.group){if(slashItems.filter(j=>!j.group&&slashItems.indexOf(j)>slashItems.indexOf(i)&&(!query||j.label.includes(query)||j.type?.includes(query))).length>0)items.push(i);}
+    else if(filtered.includes(i))items.push(i);
+  });
+  const menu=document.getElementById('slash-menu');
+  menu.innerHTML=items.map((i,idx)=>i.group
+    ?`<div class="slash-group">${i.group}</div>`
+    :`<div class="slash-item" data-type="${i.type}" onclick="applySlashType('${i.type}')">
+        <div class="si-icon">${i.icon}</div>
+        <div class="si-info"><div class="si-label">${i.label}</div><div class="si-desc">${i.desc}</div></div>
+      </div>`
+  ).join('');
+  // position
+  const rect=el.getBoundingClientRect();
+  const sel=window.getSelection();
+  let top=rect.bottom+4,left=rect.left;
+  try{const r=sel.getRangeAt(0).getBoundingClientRect();if(r.top)top=r.bottom+4,left=r.left;}catch(e){}
+  menu.style.top=top+'px';menu.style.left=left+'px';
+  menu.classList.add('visible');
+  slashSelected=0;updateSlashSelected();
+}
+function hideSlash(){slashStart=null;document.getElementById('slash-menu').classList.remove('visible');}
+function moveSlash(d){
+  const items=document.querySelectorAll('.slash-item');
+  slashSelected=Math.max(0,Math.min(items.length-1,slashSelected+d));
+  updateSlashSelected();
+  items[slashSelected]?.scrollIntoView({block:'nearest'});
+}
+function updateSlashSelected(){document.querySelectorAll('.slash-item').forEach((el,i)=>el.classList.toggle('selected',i===slashSelected));}
+function applySlash(blockId,el){
+  const items=document.querySelectorAll('.slash-item');
+  const type=items[slashSelected]?.dataset.type;
+  if(type)applySlashToBlock(blockId,el,type);
+}
+function applySlashType(type){
+  const focused=document.activeElement.closest('.block');
+  const id=focused?.dataset.id;
+  const el=focused?.querySelector('.block-content');
+  if(id&&el)applySlashToBlock(id,el,type);
+}
+function applySlashToBlock(id,el,type){
+  const b=getBlock(id);if(!b)return;
+  // remove slash+query from content
+  const text=el.innerText;
+  const clean=slashStart!=null?text.slice(0,slashStart):text;
+  b.type=type;b.content=type==='divider'?'':clean;
+  saveDB();renderEditor();
+  if(type!=='divider')setTimeout(()=>focusBlock(id),0);
+  hideSlash();
+}
+
+// ===== EMOJI PICKER =====
+const emojis=['📄','📝','⭐','🚀','💡','🎯','📊','📚','🗂','🔥','💼','🎨','🌟','✅','🏆','📋','🔖','💬','📌','🌈'];
+function pickEmoji(){
+  const p=currentPage();if(!p)return;
+  const picker=document.createElement('div');
+  picker.style.cssText='position:fixed;background:#fff;border:1px solid #e8e7e4;border-radius:8px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;display:grid;grid-template-columns:repeat(10,1fr);gap:2px;font-size:20px;';
+  emojis.forEach(em=>{
+    const btn=document.createElement('button');
+    btn.textContent=em;btn.style.cssText='border:none;background:none;cursor:pointer;padding:4px;border-radius:4px;font-size:18px';
+    btn.onmouseenter=()=>btn.style.background='#f1f1ef';
+    btn.onmouseleave=()=>btn.style.background='none';
+    btn.onclick=()=>{p.icon=em;saveDB();renderEditor();renderSidebar();document.body.removeChild(picker);}
+    picker.appendChild(btn);
+  });
+  const rect=document.getElementById('page-emoji').getBoundingClientRect();
+  picker.style.top=rect.bottom+4+'px';picker.style.left=rect.left+'px';
+  document.body.appendChild(picker);
+  const close=e=>{if(!picker.contains(e.target)){document.body.removeChild(picker);document.removeEventListener('click',close);}};
+  setTimeout(()=>document.addEventListener('click',close),0);
+}
+
+// ===== TEXTAREA AUTO-RESIZE =====
+function autoResizeTextarea(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+
+// ===== INIT =====
+function init(){
+  if(db.pages.length===0){
+    const p={id:uid(),title:'はじめてのページ',icon:'👋',blocks:[
+      {id:uid(),type:'h1',content:'ようこそ！'},
+      {id:uid(),type:'p',content:'このページはNotionクローンです。ブロックを自由に追加できます。'},
+      {id:uid(),type:'h2',content:'使い方'},
+      {id:uid(),type:'bullet',content:'Enterキーで新しいブロックを追加'},
+      {id:uid(),type:'bullet',content:'/ でスラッシュメニューを開いてブロック種類を選択'},
+      {id:uid(),type:'bullet',content:'## や - などMarkdown記法も使えます'},
+      {id:uid(),type:'todo',content:'タスクを追加してみよう',checked:false},
+      {id:uid(),type:'divider',content:''},
+      {id:uid(),type:'p',content:'左のサイドバーから新しいページを作成できます。'},
+    ],createdAt:Date.now()};
+    db.pages.push(p);saveDB();
+  }
+  renderSidebar();
+  if(db.pages.length>0)openPage(db.pages[0].id);
+  // click outside slash menu
+  document.addEventListener('click',e=>{if(!document.getElementById('slash-menu').contains(e.target))hideSlash();});
+}
+
+init();
+</script>
+</body>
+</html>

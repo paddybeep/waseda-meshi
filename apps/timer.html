@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タイマー</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .app {
+      text-align: center;
+      width: 360px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #1a1a24;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 32px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      color: #888;
+      font-size: 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: #2a2a3a;
+      color: #fff;
+    }
+
+    /* ---- Countdown ---- */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .time-display {
+      font-size: 80px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      margin-bottom: 32px;
+      color: #fff;
+    }
+
+    .time-display.running { color: #7c6fff; }
+    .time-display.finished { color: #ff6b6b; animation: blink 0.8s infinite; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .set-time {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .set-time label { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .set-time span { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .set-time input {
+      width: 72px;
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      color: #fff;
+      font-size: 26px;
+      text-align: center;
+      border-radius: 8px;
+      padding: 8px 4px;
+      outline: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .set-time input:focus { border-color: #7c6fff; }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn:disabled { opacity: 0.3; cursor: default; }
+
+    .btn-primary { background: #7c6fff; color: #fff; }
+    .btn-secondary { background: #2a2a3a; color: #fff; }
+    .btn-danger { background: #ff6b6b; color: #fff; }
+
+    /* ---- Stopwatch ---- */
+    .sw-display {
+      font-size: 72px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      margin-bottom: 8px;
+    }
+
+    .sw-ms {
+      font-size: 36px;
+      color: #666;
+      margin-bottom: 32px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .laps {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 24px;
+      text-align: left;
+    }
+
+    .laps::-webkit-scrollbar { width: 4px; }
+    .laps::-webkit-scrollbar-track { background: #0f0f13; }
+    .laps::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
+
+    .lap {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 8px;
+      border-bottom: 1px solid #1a1a24;
+      font-size: 14px;
+      color: #aaa;
+    }
+    .lap:first-child { color: #7c6fff; }
+    .lap .lap-num { color: #555; }
+
+    /* progress ring */
+    .ring-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 24px;
+    }
+    svg.ring { transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: #1a1a24; stroke-width: 6; }
+    .ring-fg { fill: none; stroke: #7c6fff; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+    .ring-time {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 52px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('countdown')">カウントダウン</button>
+    <button class="tab" onclick="switchTab('stopwatch')">ストップウォッチ</button>
+  </div>
+
+  <!-- Countdown Panel -->
+  <div id="panel-countdown" class="panel active">
+    <div class="ring-wrap">
+      <svg class="ring" width="220" height="220" viewBox="0 0 220 220">
+        <circle class="ring-bg" cx="110" cy="110" r="100"/>
+        <circle class="ring-fg" id="ring-fg" cx="110" cy="110" r="100"/>
+      </svg>
+      <div class="ring-time" id="cd-display">00:00</div>
+    </div>
+
+    <div class="set-time" id="cd-inputs">
+      <label>
+        <span>時間</span>
+        <input type="number" id="inp-h" min="0" max="23" value="0">
+      </label>
+      <label>
+        <span>分</span>
+        <input type="number" id="inp-m" min="0" max="59" value="5">
+      </label>
+      <label>
+        <span>秒</span>
+        <input type="number" id="inp-s" min="0" max="59" value="0">
+      </label>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-secondary" id="cd-reset" onclick="cdReset()">リセット</button>
+      <button class="btn btn-primary" id="cd-start" onclick="cdToggle()">スタート</button>
+    </div>
+  </div>
+
+  <!-- Stopwatch Panel -->
+  <div id="panel-stopwatch" class="panel">
+    <div class="sw-display" id="sw-display">00:00</div>
+    <div class="sw-ms" id="sw-ms">.00</div>
+    <div class="controls">
+      <button class="btn btn-secondary" id="sw-lap" onclick="swLap()" disabled>ラップ</button>
+      <button class="btn btn-primary" id="sw-start" onclick="swToggle()">スタート</button>
+      <button class="btn btn-danger" id="sw-reset" onclick="swReset()" disabled>リセット</button>
+    </div>
+    <div class="laps" id="laps"></div>
+  </div>
+</div>
+
+<audio id="beep-audio"></audio>
+
+<script>
+// ---- Tab switch ----
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['countdown','stopwatch'][i]===name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ---- Beep ----
+function playBeep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  [0, 200, 400].forEach(delay => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime + delay/1000);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.3);
+    osc.start(ctx.currentTime + delay/1000);
+    osc.stop(ctx.currentTime + delay/1000 + 0.3);
+  });
+}
+
+// ---- Countdown ----
+let cdTimer = null, cdRemaining = 0, cdTotal = 0;
+const CIRCUMFERENCE = 2 * Math.PI * 100;
+document.getElementById('ring-fg').style.strokeDasharray = CIRCUMFERENCE;
+document.getElementById('ring-fg').style.strokeDashoffset = 0;
+
+function cdGetInputSeconds() {
+  const h = parseInt(document.getElementById('inp-h').value)||0;
+  const m = parseInt(document.getElementById('inp-m').value)||0;
+  const s = parseInt(document.getElementById('inp-s').value)||0;
+  return h*3600 + m*60 + s;
+}
+
+function cdFormatTime(sec) {
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  if(h>0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function cdUpdateRing(remaining, total) {
+  const progress = total > 0 ? remaining / total : 1;
+  document.getElementById('ring-fg').style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const fg = document.getElementById('ring-fg');
+  fg.style.stroke = remaining === 0 ? '#ff6b6b' : '#7c6fff';
+}
+
+function cdToggle() {
+  if (cdTimer) {
+    clearInterval(cdTimer);
+    cdTimer = null;
+    document.getElementById('cd-start').textContent = 'スタート';
+    document.getElementById('cd-display').className = 'ring-time';
+  } else {
+    if (cdRemaining === 0) {
+      cdTotal = cdGetInputSeconds();
+      cdRemaining = cdTotal;
+      if (cdRemaining === 0) return;
+    }
+    document.getElementById('cd-inputs').style.opacity = '0.4';
+    document.getElementById('cd-inputs').style.pointerEvents = 'none';
+    document.getElementById('cd-start').textContent = '一時停止';
+    document.getElementById('cd-display').className = 'ring-time running';
+    cdTimer = setInterval(() => {
+      cdRemaining--;
+      document.getElementById('cd-display').textContent = cdFormatTime(cdRemaining);
+      cdUpdateRing(cdRemaining, cdTotal);
+      if (cdRemaining <= 0) {
+        clearInterval(cdTimer); cdTimer = null;
+        document.getElementById('cd-start').textContent = 'スタート';
+        document.getElementById('cd-display').className = 'ring-time finished';
+        playBeep();
+      }
+    }, 1000);
+    document.getElementById('cd-display').textContent = cdFormatTime(cdRemaining);
+    cdUpdateRing(cdRemaining, cdTotal);
+  }
+}
+
+function cdReset() {
+  if(cdTimer){ clearInterval(cdTimer); cdTimer=null; }
+  cdRemaining = 0; cdTotal = 0;
+  document.getElementById('cd-display').textContent = '00:00';
+  document.getElementById('cd-display').className = 'ring-time';
+  document.getElementById('cd-start').textContent = 'スタート';
+  document.getElementById('cd-inputs').style.opacity = '';
+  document.getElementById('cd-inputs').style.pointerEvents = '';
+  document.getElementById('ring-fg').style.strokeDashoffset = 0;
+  document.getElementById('ring-fg').style.stroke = '#7c6fff';
+}
+
+// Show initial value in display
+document.getElementById('cd-display').textContent = cdFormatTime(cdGetInputSeconds());
+['inp-h','inp-m','inp-s'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if(!cdTimer && cdRemaining===0)
+      document.getElementById('cd-display').textContent = cdFormatTime(cdGetInputSeconds());
+  });
+});
+
+// ---- Stopwatch ----
+let swTimer = null, swElapsed = 0, swStart = 0, swLaps = [];
+
+function swFormat(ms) {
+  const total = Math.floor(ms/10);
+  const cs = total%100;
+  const sec = Math.floor(total/100)%60;
+  const min = Math.floor(total/6000)%60;
+  const hr  = Math.floor(total/360000);
+  const time = hr>0
+    ? `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    : `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return { time, cs: '.'+String(cs).padStart(2,'0') };
+}
+
+function swRenderTime() {
+  const { time, cs } = swFormat(swElapsed);
+  document.getElementById('sw-display').textContent = time;
+  document.getElementById('sw-ms').textContent = cs;
+}
+
+function swToggle() {
+  if (swTimer) {
+    clearInterval(swTimer); swTimer = null;
+    swElapsed += Date.now() - swStart;
+    document.getElementById('sw-start').textContent = 'スタート';
+    document.getElementById('sw-start').className = 'btn btn-primary';
+    document.getElementById('sw-lap').disabled = true;
+  } else {
+    swStart = Date.now();
+    swTimer = setInterval(() => {
+      const cur = swElapsed + (Date.now() - swStart);
+      const { time, cs } = swFormat(cur);
+      document.getElementById('sw-display').textContent = time;
+      document.getElementById('sw-ms').textContent = cs;
+    }, 50);
+    document.getElementById('sw-start').textContent = '一時停止';
+    document.getElementById('sw-start').className = 'btn btn-secondary';
+    document.getElementById('sw-lap').disabled = false;
+    document.getElementById('sw-reset').disabled = false;
+  }
+}
+
+function swLap() {
+  const cur = swElapsed + (Date.now() - swStart);
+  swLaps.unshift(cur);
+  const container = document.getElementById('laps');
+  container.innerHTML = swLaps.map((t,i) => {
+    const prev = swLaps[i+1] || 0;
+    const { time: lapTime } = swFormat(t - prev);
+    const { time: totalTime } = swFormat(t);
+    return `<div class="lap"><span class="lap-num">ラップ ${swLaps.length-i}</span><span>${lapTime}</span><span>${totalTime}</span></div>`;
+  }).join('');
+}
+
+function swReset() {
+  if(swTimer){ clearInterval(swTimer); swTimer=null; }
+  swElapsed=0; swLaps=[];
+  document.getElementById('sw-display').textContent='00:00';
+  document.getElementById('sw-ms').textContent='.00';
+  document.getElementById('laps').innerHTML='';
+  document.getElementById('sw-start').textContent='スタート';
+  document.getElementById('sw-start').className='btn btn-primary';
+  document.getElementById('sw-lap').disabled=true;
+  document.getElementById('sw-reset').disabled=true;
+}
+</script>
+</body>
+</html>
