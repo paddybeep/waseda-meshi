@@ -3261,8 +3261,8 @@ let activeSearchGenre = null;
 // キャンパス中心座標と半径(km)
 const CAMPUS_CENTERS = {
   waseda: { lat: 35.7089, lng: 139.7195, name: '早稲田キャンパス' },
-  toyama: { lat: 35.7093, lng: 139.7260, name: '戸山キャンパス' },
-  nishiw: { lat: 35.7072, lng: 139.7143, name: '西早稲田キャンパス' },
+  toyama: { lat: 35.7056042, lng: 139.7176332, name: '戸山キャンパス' },
+  nishiw: { lat: 35.70611,   lng: 139.7070,    name: '西早稲田キャンパス' },
 };
 let activeCampus = null;
 
@@ -3584,8 +3584,8 @@ function initMap(){
   // ── 早稲田大学キャンパスマーカー ──────────────────────────
   const campuses = [
     { name:'早稲田キャンパス', lat:35.7089, lng:139.7195, color:'#8C1515', note:'文・法・商・政経 など' },
-    { name:'戸山キャンパス',   lat:35.7093, lng:139.7260, color:'#1f5f9c', note:'文学部・文化構想学部' },
-    { name:'西早稲田キャンパス', lat:35.7072, lng:139.7143, color:'#0f8a6c', note:'理工学部（基幹・創造・先進）' },
+    { name:'戸山キャンパス',   lat:35.7056042, lng:139.7176332, color:'#1f5f9c', note:'文学部・文化構想学部' },
+    { name:'西早稲田キャンパス', lat:35.70611,   lng:139.7070,    color:'#0f8a6c', note:'理工学部（基幹・創造・先進）' },
   ];
   campuses.forEach(c => {
     const svgHtml = `<div style="background:${c.color};color:#fff;font-size:10px;font-weight:800;padding:4px 7px;border-radius:12px;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🎓 ${c.name}</div>`;
