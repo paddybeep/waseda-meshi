@@ -746,6 +746,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 
+/* アクティブなアコーディオン強調 */
+.accordion.has-selection > .accordion-hd {
+  border-left: 3px solid var(--brand);
+  background: var(--brand-light);
+}
+.accordion.has-selection .ah-title {
+  color: var(--brand);
+  font-weight: 800;
+}
+
 .campus-chip {
   background: var(--surface);
   border: 1.5px solid var(--border);
@@ -3287,7 +3297,7 @@ function selectCampus(key) {
       sel.style.display = 'none';
     }
   }
-  showSearchResults(true);
+  _renderInlineResults();
 }
 
 function distKm(lat1, lng1, lat2, lng2) {
@@ -3325,24 +3335,45 @@ function renderSearch(){
   const clearBtn = document.getElementById("searchClear");
   clearBtn.classList.toggle("visible", q.length>0);
   updateActiveFiltersBar();
-  updateSearchBtn();
-  // テキスト検索は即時、フィルターはボタン待ち
-  if(q) showSearchResults(true);
+  _renderInlineResults();
 }
 
 function updateSearchBtn(){
-  const wrap  = document.getElementById('searchBtnWrap');
-  const label = document.getElementById('searchExecLabel');
-  const hasFilter = activeSituation || activePerson || activeSearchGenre || activeCampus;
-  const sections = document.getElementById('searchSections');
-  // 検索結果表示中でなければボタンを表示
-  const res = document.getElementById('searchResults');
-  if(hasFilter && sections.style.display !== 'none'){
-    wrap.style.display = 'block';
-    const cnt = searchFiltered().length;
-    label.textContent = lang==='en' ? `Find ${cnt} restaurants` : `${cnt}件のお店を探す`;
+  // 新デザインではボタン不要（即時表示）
+  const wrap = document.getElementById('searchBtnWrap');
+  if(wrap) wrap.style.display = 'none';
+}
+
+// フィルター変更 → 即座にアコーディオン下に結果表示
+function _renderInlineResults(){
+  const res      = document.getElementById("searchResults");
+  const sections = document.getElementById("searchSections");
+  const btnWrap  = document.getElementById("searchBtnWrap");
+  const q = document.getElementById("searchInput").value.trim();
+  const hasFilter = activeSituation || activePerson || activeSearchGenre || activeCampus || q;
+
+  if(btnWrap) btnWrap.style.display = "none";
+  sections.style.display = "block"; // アコーディオン常時表示
+
+  if(!hasFilter){ res.innerHTML = ""; return; }
+
+  const list = searchFiltered();
+  if(!list.length){
+    res.innerHTML = `
+      <div style="margin:12px 14px 0;background:var(--brand-light);border-radius:14px;padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:6px">🔍</div>
+        <div style="font-size:14px;font-weight:800;color:var(--brand)">条件に合うお店が見つかりません</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">条件を変えてみて</div>
+      </div>`;
   } else {
-    wrap.style.display = 'none';
+    res.innerHTML = `
+      <div style="margin:12px 14px 4px;display:flex;align-items:center;gap:8px">
+        <div style="background:var(--brand);color:#fff;border-radius:20px;padding:6px 14px;font-size:14px;font-weight:800;box-shadow:0 2px 8px rgba(140,21,21,0.3);animation:searchBtnPop 0.25s ease">
+          🍽️ ${list.length}件ヒット
+        </div>
+        <div style="font-size:12px;color:var(--muted)">↓ スクロールして確認</div>
+      </div>
+      ${AD_CARD}${list.map(s=>postHTML(s)).join("")}`;
   }
 }
 
@@ -3393,8 +3424,8 @@ function resetSearch(){
   const acc3sel = document.getElementById('acc3sel');
   if(acc3sel) acc3sel.style.display = 'none';
   document.getElementById("searchInput").value="";
-  showSearchResults(false);
   updateActiveFiltersBar();
+  _renderInlineResults();
 }
 
 function updateActiveFiltersBar(){
@@ -3429,6 +3460,12 @@ function updateActiveFiltersBar(){
   if(s0){ const sit=SITUATIONS.find(x=>x.id===activeSituation); s0.textContent=sit?sit.emoji+" "+(lang==='en'?sit.labelEn:sit.label):""; s0.style.display=sit?"inline-block":"none"; }
   if(s1){ const po=PERSON_OPTS.find(x=>x.id===activePerson); s1.textContent=po?po.icon+" "+(lang==='en'?po.labelEn:po.label):""; s1.style.display=po?"inline-block":"none"; }
   if(s2){ s2.textContent=activeSearchGenre?genreEmoji(activeSearchGenre)+" "+(lang==='en'?(GENRE_EN[activeSearchGenre]||activeSearchGenre):activeSearchGenre):""; s2.style.display=activeSearchGenre?"inline-block":"none"; }
+
+  // アクティブなアコーディオンにクラス付与（視覚的強調）
+  document.getElementById("acc0")?.classList.toggle("has-selection", !!activeSituation);
+  document.getElementById("acc1")?.classList.toggle("has-selection", !!activePerson);
+  document.getElementById("acc2")?.classList.toggle("has-selection", !!activeSearchGenre);
+  document.getElementById("acc3")?.classList.toggle("has-selection", !!activeCampus);
 }
 
 function clearSearch(){ document.getElementById("searchInput").value=""; resetSearch(); }
@@ -3438,7 +3475,7 @@ function clearSearchGenre(){ activeSearchGenre=null; updateFilterState(); }
 
 function updateFilterState(){
   updateActiveFiltersBar();
-  updateSearchBtn();
+  _renderInlineResults();
 }
 
 function setSituation(id){
