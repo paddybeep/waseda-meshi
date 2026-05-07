@@ -3083,8 +3083,16 @@ function postHTML(s){
   const col=cColor(p);
   const lk=likes[s.id];
   const sv=saves[s.id];
+  const status = getStoreStatus(s);
+  const isClosed = status !== 'open';
+  const closedBanner = isClosed ? `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:inherit;gap:6px">
+      <div style="font-size:32px">${status==='closed_day'?'🚫':'🕐'}</div>
+      <div style="color:#fff;font-size:17px;font-weight:900;letter-spacing:0.5px">${status==='closed_day'?'本日定休日':'営業時間外'}</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:12px">${s.hours}　${s.closed}</div>
+    </div>` : '';
   return `
-  <div class="post">
+  <div class="post"${isClosed?' style="opacity:0.75"':''}>
     <div class="post-header" onclick="openDetail(${s.id})" style="cursor:pointer">
       <div style="flex-shrink:0">
         <div class="post-avatar" onclick="event.stopPropagation();openDetail(${s.id})" style="cursor:pointer">${s.emoji}</div>
@@ -3092,16 +3100,18 @@ function postHTML(s){
       <div class="post-meta">
         <div class="post-name-row">
           <span class="post-name">${s.name}</span>${s.plan==='松'?`<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">⭐ おすすめ</span>`:''}
+          ${isClosed?`<span style="background:#666;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">${status==='closed_day'?'定休日':'時間外'}</span>`:''}
           ${ownerData[s.id]?.todaySpecial ? `<span class="note-inline">💬 ${ownerData[s.id].todaySpecial.length>18?ownerData[s.id].todaySpecial.slice(0,18)+'…':ownerData[s.id].todaySpecial}</span>` : ''}
         </div>
         <div class="post-genre">${s.genre} · ${s.addr.split("区")[0]}区</div>
       </div>
       ${s.paid?'<span class="post-badge-paid">掲載中</span>':s.isNew?'<span class="post-badge-new">NEW</span>':''}
     </div>
-    <div class="post-visual" onclick="openDetail(${s.id})">
+    <div class="post-visual" onclick="openDetail(${s.id})" style="position:relative">
       <div class="post-visual-bg">${s.emoji}</div>
       <span style="position:relative;z-index:1">${s.emoji}</span>
-      <div class="cong-overlay">
+      ${closedBanner}
+      <div class="cong-overlay"${isClosed?' style="display:none"':''}>
         <div class="cong-main-row">
           <div class="cong-big-num" style="color:${col}">${p}<span style="font-size:24px;font-weight:700">%</span></div>
           <div class="cong-right">
@@ -5247,17 +5257,34 @@ function switchOwnerTab(idx) {
   if (idx === 3) renderOwnerMenuTab();
 }
 
-// ── 営業時間チェック ───────────────────────────────────────────
-function isStoreOpenNow(store) {
-  if (!store || !store.hours) return true; // 不明なら開いてるとみなす
-  const m = store.hours.match(/(\d{1,2}):(\d{2})[〜~\-](\d{1,2}):(\d{2})/);
-  if (!m) return true;
+// ── 営業状態チェック ───────────────────────────────────────────
+// 戻り値: 'open' | 'closed_hours' | 'closed_day'
+function getStoreStatus(store) {
+  if (!store) return 'open';
   const now = new Date();
-  const cur = now.getHours() * 60 + now.getMinutes();
+  const dow = now.getDay(); // 0=日,1=月...6=土
+  const DAY_MAP = {'日':0,'月':1,'火':2,'水':3,'木':4,'金':5,'土':6};
+  const closed = store.closed || '';
+
+  // 定休日チェック（無休・不定休は除外）
+  if (closed !== '無休' && closed !== '不定休') {
+    for (const [ch, d] of Object.entries(DAY_MAP)) {
+      if (closed.includes(ch) && dow === d) return 'closed_day';
+    }
+  }
+
+  // 営業時間チェック
+  if (!store.hours) return 'open';
+  const m = store.hours.match(/(\d{1,2}):(\d{2})[〜~\-](\d{1,2}):(\d{2})/);
+  if (!m) return 'open';
+  const cur   = now.getHours() * 60 + now.getMinutes();
   const open  = parseInt(m[1]) * 60 + parseInt(m[2]);
-  const close = parseInt(m[3]) * 60 + parseInt(m[4]);
-  return cur >= open && cur < close;
+  let   close = parseInt(m[3]) * 60 + parseInt(m[4]);
+  if (close < open) close += 24 * 60; // 深夜越え対応
+  if (cur < open || cur >= close) return 'closed_hours';
+  return 'open';
 }
+function isStoreOpenNow(store) { return getStoreStatus(store) === 'open'; }
 
 // ── FCM初期化・トークン取得 ───────────────────────────────────
 // ※ VAPIDキーはFirebaseコンソール > プロジェクト設定 > Cloud Messaging > ウェブプッシュ証明書 から取得
