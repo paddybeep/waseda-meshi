@@ -4312,13 +4312,19 @@ function _renderMyCard(){
       </div>
     </div>
 
-    <!-- 行②：マイコード ＋ フレンド追加（同一行） -->
+    <!-- 行②：QR友達追加ボタン（目立つ） -->
+    <div style="padding:0 14px 10px;display:flex;gap:8px">
+      <button onclick="openQRSheet()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:13px 16px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(140,21,21,0.25)">
+        📲 QRコードで友達追加
+      </button>
+    </div>
+
+    <!-- 行③：マイコード ＋ コード入力 -->
     <div class="lv-code-add-row">
       <div class="lv-code-mini">
         <span class="lv-code-mini-key">🔑</span>
         <span class="lv-code-mini-val">${myCode}</span>
         <button class="lv-code-mini-copy" onclick="copyMyCode()">${t('lunchCopy')}</button>
-        <button class="lv-code-mini-copy" onclick="openQRSheet()" style="background:var(--brand);color:#fff;border-color:var(--brand)">QR</button>
       </div>
       <div class="lv-add-mini">
         <input id="lvFriendCodeInput" class="lv-add-mini-input" placeholder="${lang==='en'?'Code':'コード入力'}" maxlength="8"
