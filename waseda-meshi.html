@@ -3297,6 +3297,8 @@ function selectCampus(key) {
       sel.style.display = 'none';
     }
   }
+  document.getElementById("acc3")?.classList.remove("open");
+  updateActiveFiltersBar();
   _renderInlineResults();
 }
 
@@ -3480,14 +3482,17 @@ function updateFilterState(){
 
 function setSituation(id){
   activeSituation = activeSituation===id ? null : id;
+  document.getElementById("acc0")?.classList.remove("open");
   updateFilterState();
 }
 function setPersonFilter(id){
   activePerson = activePerson===id ? null : id;
+  document.getElementById("acc1")?.classList.remove("open");
   updateFilterState();
 }
 function setSearchGenre(g){
   activeSearchGenre = activeSearchGenre===g ? null : g;
+  document.getElementById("acc2")?.classList.remove("open");
   updateFilterState();
 }
 
