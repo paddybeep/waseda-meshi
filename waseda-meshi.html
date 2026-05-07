@@ -2059,7 +2059,7 @@ function startFirestoreListeners(){
         if(data.likedBy      !== undefined) ownerData[s.id].likedBy      = data.likedBy;
         // フィードを再描画（ホームが表示中のとき）
         if(document.getElementById('viewHome')?.classList.contains('active')) renderFeed();
-        if(document.getElementById('viewSearch')?.classList.contains('active')) showSearchResults(false);
+        if(document.getElementById('viewSearch')?.classList.contains('active')) _renderInlineResults();
       }
     }, err => console.warn('Firestore listen error:', err));
   });
