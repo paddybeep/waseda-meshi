@@ -17,6 +17,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   /* 早稲田エンジ */
@@ -863,12 +865,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 /* visual */
 .post-visual {
   width: 100%;
-  aspect-ratio: 1/1;
+  aspect-ratio: 4/3;
   background: linear-gradient(145deg, #F7EEEE, #EDE0E0);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 96px;
+  font-size: 72px;
   position: relative;
   overflow: hidden;
 }
@@ -1900,6 +1902,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 相手も先にアプリを開いておく必要があります</div>
     </div>
+
+    <!-- スタンプカード -->
+    <div class="lv-section" id="stampCardSection"></div>
+
   </div>
 </div>
 
@@ -1931,6 +1937,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     <!-- 候補リスト -->
     <div id="mapSuggest" style="background:#fff;border-radius:12px;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,0.15);overflow:hidden;max-height:200px;overflow-y:auto"></div>
   </div>
+  <!-- 現在地ボタン -->
+  <button id="mapLocateBtn" onclick="locateUser()"
+    style="position:absolute;bottom:90px;right:14px;z-index:1000;width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 10px rgba(0,0,0,0.25);cursor:pointer;display:flex;align-items:center;justify-content:center">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8C1515" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
+    </svg>
+  </button>
   <div id="mapContainer"></div>
 </div>
 
@@ -2016,6 +2029,135 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const analytics = firebase.analytics();
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// ── Google認証 ────────────────────────────────────────────────
+let currentGoogleUser = null;
+
+async function signInWithGoogle() {
+  if(location.protocol === 'file:') {
+    showToast('Google連携はVercel版でお使いください: exports-seven.vercel.app');
+    return;
+  }
+  try {
+    localStorage.setItem('waseMeshiGoogleRedirect', '1');
+    await auth.signInWithRedirect(googleProvider);
+  } catch(e) {
+    console.error('Google auth error:', e.code, e.message);
+    showToast('ログインに失敗しました。もう一度お試しください。');
+  }
+}
+
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted && !localStorage.getItem('waseMeshiGoogleRedirect')) {
+    window.location.reload();
+  }
+});
+
+auth.getRedirectResult().then(result => {
+  if (result && result.user) {
+    localStorage.removeItem('waseMeshiGoogleRedirect');
+    handleGoogleSignIn(result.user);
+  } else if(localStorage.getItem('waseMeshiGoogleRedirect')) {
+    localStorage.removeItem('waseMeshiGoogleRedirect');
+    showToast('Google認証を完了できませんでした。再度お試しください。');
+  }
+}).catch(e => {
+  localStorage.removeItem('waseMeshiGoogleRedirect');
+  if (e.code === 'auth/unauthorized-domain') {
+    showToast('このドメインはFirebaseで未認証です。Firebase ConsoleにURLを追加してください。');
+  } else if (e.code !== 'auth/no-auth-event') {
+    console.warn('redirect result error:', e.code, e.message);
+    showToast(`Google認証エラー: ${e.code}`);
+  }
+});
+
+async function signOutGoogle() {
+  await auth.signOut();
+  currentGoogleUser = null;
+  showToast('ログアウトしました');
+  if(document.getElementById('viewLunch')?.classList.contains('active')) {
+    _renderMyCard();
+  }
+  if(document.getElementById('settingsOverlay')?.classList.contains('open')) openSettings();
+}
+
+async function handleGoogleSignIn(user) {
+  currentGoogleUser = user;
+  showToast('データを同期中...');
+  try {
+    const authRef = db.collection('users_auth').doc(user.uid);
+    const authDoc = await authRef.get();
+    if (authDoc.exists) {
+      const data = authDoc.data();
+      const savedCode = data.waseMeshiCode;
+      const savedName = data.displayName;
+      const savedFriends = data.friends;
+      if (savedCode && savedCode !== myCode) {
+        myCode = savedCode;
+        localStorage.setItem('waseMeshiCode', myCode);
+      }
+      if (savedName) {
+        myLunchName = savedName;
+        localStorage.setItem('waseMeshiName', myLunchName);
+      }
+      if (savedFriends && savedFriends.length > 0) {
+        const merged = [...friendsList];
+        savedFriends.forEach(f => {
+          if (!merged.some(x => x.code === f.code)) merged.push(f);
+        });
+        friendsList = merged;
+        saveFriends();
+      }
+    } else {
+      if (!myLunchName && user.displayName) {
+        myLunchName = user.displayName.split(' ')[0];
+        localStorage.setItem('waseMeshiName', myLunchName);
+      }
+      await authRef.set({
+        waseMeshiCode: myCode,
+        displayName: myLunchName || user.displayName || '',
+        email: user.email || '',
+        photoURL: user.photoURL || '',
+        friends: friendsList,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    showToast((user.displayName || 'アカウント') + 'でログインしました');
+    switchTab('lunch');
+    if(document.getElementById('settingsOverlay')?.classList.contains('open')) openSettings();
+  } catch(e) {
+    console.error('Google auth error:', e);
+    showToast('同期中にエラーが発生しました');
+  }
+}
+
+function saveAndSyncFriends() {
+  saveFriends();
+  if (currentGoogleUser) {
+    db.collection('users_auth').doc(currentGoogleUser.uid)
+      .set({ friends: friendsList }, { merge: true })
+      .catch(() => {});
+  }
+}
+
+let _authHandled = false;
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentGoogleUser = user;
+    if (!_authHandled) {
+      _authHandled = true;
+      setTimeout(() => handleGoogleSignIn(user), 500);
+    }
+  } else {
+    currentGoogleUser = null;
+    _authHandled = false;
+    if(document.getElementById('viewLunch')?.classList.contains('active')) {
+      _renderMyCard();
+    }
+  }
+});
 
 // ── イベントログ（自動収集） ──────────────────────────────────
 function logEvent(name, params={}){
@@ -2882,9 +3024,10 @@ const cong = {};
 const lastUpd = {};
 STORES.forEach(s => { cong[s.id] = Math.floor(Math.random()*75)+10; });
 
-function cColor(p){ return p<40?"#2ecc71":p<70?"#f39c12":"#e74c3c"; }
-function cLabel(p){ return p<40?"空いてる":p<70?"普通":"混んでる"; }
-function cEmoji(p){ return p<40?"🟢":p<70?"🟡":"🔴"; }
+function cColor(p){ return p<20?"#2ecc71":p<50?"#95c41f":p<70?"#f39c12":p<90?"#e74c3c":"#c0392b"; }
+function cLabel(p){ return p<20?"空いてる":p<50?"やや空き":p<70?"普通":p<90?"やや混雑":"混雑"; }
+function cEmoji(p){ return p<20?"🟢":p<50?"🟡":p<70?"🟠":p<90?"🔴":"🔴🔴"; }
+function cWait(p){ return p<20?"今すぐ入れる":p<50?"ほぼ待ちなし":p<70?"5〜10分待ち":p<90?"15〜20分待ち":"30分以上待ち"; }
 
 setInterval(()=>{
   STORES.forEach(s=>{ cong[s.id]=Math.max(5,Math.min(97,Math.round(cong[s.id]+(Math.random()*18-9)))); });
@@ -3657,6 +3800,45 @@ function initMap(){
   });
 
   STORES.forEach(s=>addMapMarker(s));
+
+  // 起動時に自動で現在地を取得（許可されていれば）
+  locateUser(false);
+}
+
+let _userLocationMarker = null;
+let _userLocationCircle = null;
+
+function locateUser(showToastOnFail = true) {
+  if(!navigator.geolocation){ if(showToastOnFail) showToast('位置情報はこのブラウザでは利用できません'); return; }
+  if(!map) initMap();
+  const btn = document.getElementById('mapLocateBtn');
+  if(btn) btn.style.opacity = '0.5';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const latlng = [pos.coords.latitude, pos.coords.longitude];
+      const acc = pos.coords.accuracy;
+      if(_userLocationMarker) map.removeLayer(_userLocationMarker);
+      if(_userLocationCircle) map.removeLayer(_userLocationCircle);
+      _userLocationCircle = L.circle(latlng, {
+        radius: acc, color:'#4285F4', fillColor:'#4285F4', fillOpacity:0.1, weight:1
+      }).addTo(map);
+      const icon = L.divIcon({
+        html:`<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+        className:'', iconAnchor:[8,8]
+      });
+      _userLocationMarker = L.marker(latlng, {icon}).addTo(map).bindPopup('現在地');
+      map.setView(latlng, 16);
+      if(btn) btn.style.opacity = '1';
+    },
+    (err) => {
+      if(btn) btn.style.opacity = '1';
+      if(showToastOnFail){
+        if(err.code === 1) showToast('位置情報の許可が必要です。ブラウザの設定から許可してください');
+        else showToast('位置情報を取得できませんでした');
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+  );
 }
 
 function mapSearchStores(q) {
@@ -3715,7 +3897,10 @@ function addMapMarker(s){
 
 function popupHTML(s){
   const p=cong[s.id];
-  return `<div class="mpop"><div class="me">${s.emoji}</div><div class="mn">${s.name}</div><div class="mg">${s.genre}</div><div class="mc">${cEmoji(p)} ${p}% ${cLabel(p)}</div><button onclick="openDetail(${s.id})">詳細を見る</button></div>`;
+  const seats=ownerData[s.id]?.seatsStatus;
+  const seatsBadge=seats==='queue'?'<span style="background:#fee;color:#c0392b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🚶 行列あり</span>':seats==='full'?'<span style="background:#fee;color:#c0392b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🔴 満席</span>':seats==='few'?'<span style="background:#fff8e0;color:#b7860b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🟡 残席わずか</span>':'';
+  const col=cColor(p);
+  return `<div class="mpop"><div class="me">${s.emoji}</div><div class="mn">${s.name}${s.plan==='プレミアム'?'<span style="font-size:9px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-weight:800;padding:1px 5px;border-radius:6px;margin-left:4px">PR</span>':''}</div><div class="mg">${s.genre}</div><div class="mc" style="font-weight:800;color:${col}">${cEmoji(p)} ${cWait(p)}${seatsBadge}</div><button onclick="openDetail(${s.id})">詳細を見る</button></div>`;
 }
 
 function updateMapMarkers(){
@@ -3734,6 +3919,7 @@ const NAV_IDS={home:"navHome",search:"navSearch",lunch:"navLunch",map:"navMap"};
 
 function switchTab(tab){
   logEvent('tab_view', { tab });
+  localStorage.setItem('waseMeshiTab', tab);
   Object.keys(TABS).forEach(k=>{
     document.getElementById(TABS[k]).classList.toggle("active",k===tab);
     document.getElementById(NAV_IDS[k]).classList.toggle("active",k===tab);
@@ -4125,6 +4311,32 @@ function openSettings(){
       <button onclick="closeSheets()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">✕</button>
     </div>
 
+    <!-- Google アカウント -->
+    <div class="settings-section">
+      <div class="settings-section-title">アカウント</div>
+      ${currentGoogleUser ? `
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border)">
+        <img src="${currentGoogleUser.photoURL||''}" style="width:44px;height:44px;border-radius:50%;border:2px solid var(--brand);object-fit:cover" onerror="this.style.display='none'">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:800;color:var(--text)">${currentGoogleUser.displayName||'ユーザー'}</div>
+          <div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentGoogleUser.email||''}</div>
+          <div style="font-size:11px;color:var(--brand);margin-top:2px">✅ データをデバイス間で同期中</div>
+        </div>
+        <button onclick="signOutGoogle()" style="font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;flex-shrink:0">ログアウト</button>
+      </div>
+      ` : `
+      <div style="padding:4px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+          Googleアカウントでログインすると、機種変や複数デバイスでもデータが引き継げます。
+        </div>
+        <button onclick="signInWithGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;background:#fff;border:1.5px solid #dadce0;border-radius:12px;font-size:15px;font-weight:700;color:#3c4043;cursor:pointer;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Googleでログイン
+        </button>
+      </div>
+      `}
+    </div>
+
     <div class="settings-section">
       <div class="settings-section-title">${t('settingsLangSection')}</div>
       <div class="settings-row">
@@ -4337,9 +4549,30 @@ function renderLunchTab(){
   }
   fl.innerHTML = html;
 
+  // ── スタンプカード ──
+  renderStampCard();
+
   // ── 自分のステータスカード（sticky） ──
   _renderMyCard();
   updateUnreadBadge();
+}
+
+function _googleBannerHTML(){
+  if(currentGoogleUser){
+    return `<div style="background:rgba(0,0,0,0.25);padding:6px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.1)">
+      <img src="${currentGoogleUser.photoURL||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">
+      <span style="font-size:11px;color:rgba(255,255,255,0.8);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentGoogleUser.displayName||currentGoogleUser.email||''}</span>
+      <button onclick="signOutGoogle()" style="font-size:10px;color:rgba(255,255,255,0.6);background:transparent;border:1px solid rgba(255,255,255,0.25);border-radius:5px;padding:2px 7px;cursor:pointer;flex-shrink:0">ログアウト</button>
+    </div>`;
+  } else {
+    return `<div style="background:rgba(0,0,0,0.18);padding:8px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.1)">
+      <span style="font-size:11px;color:rgba(255,255,255,0.8);flex:1">Googleでログインするとデータを引き継げます</span>
+      <button onclick="signInWithGoogle()" style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;color:#3c4043;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        ログイン
+      </button>
+    </div>`;
+  }
 }
 
 function _renderMyCard(){
@@ -4349,6 +4582,7 @@ function _renderMyCard(){
   const statusColor = myLunchStatus==='now'?'#2ecc71':myLunchStatus==='later'?'#f39c12':'rgba(255,255,255,0.4)';
   const statusLabel = myLunchStatus==='now'?t('lunchStatusNow'):myLunchStatus==='later'?t('lunchStatusLater'):t('lunchStatusOff');
   card.innerHTML = `
+    ${_googleBannerHTML()}
     <!-- 行①：アイコン＋名前 -->
     <div class="lv-my-card-inner">
       <div class="lv-my-icon-wrap">
@@ -5718,6 +5952,13 @@ function renderOwnerJobs() {
       <button class="add-job-btn" onclick="openJobForm()">＋ 新しい求人を追加する</button>
     </div>
 
+    <div class="owner-section">
+      <div class="owner-section-title">📨 応募者一覧</div>
+      <div id="applicantsList" style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border)">
+        <div style="font-size:13px;color:var(--muted);text-align:center">読み込み中...</div>
+      </div>
+    </div>
+
     <div class="owner-section" style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border)">
       <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px">📊 掲載プレビュー（ユーザーに見える内容）</div>
       <div style="font-size:13px;color:var(--sub);line-height:1.7">
@@ -5726,6 +5967,8 @@ function renderOwnerJobs() {
       </div>
     </div>
   `;
+  // 応募者リストを取得
+  loadApplicants();
 }
 
 function jobCardHTML(j) {
@@ -5933,6 +6176,410 @@ function jobListingsHTML(storeId) {
   `;
 }
 
+// ── スタンプカード ────────────────────────────────────────────
+function renderStampCard() {
+  const el = document.getElementById('stampCardSection');
+  if(!el) return;
+  const storeStamps = STORES.map(s => {
+    const count = parseInt(localStorage.getItem(`stamps_${s.id}`) || '0');
+    return { store: s, count };
+  }).filter(x => x.count > 0);
+
+  if(storeStamps.length === 0) {
+    el.innerHTML = `
+      <div class="lv-section-label">スタンプカード</div>
+      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);text-align:center;color:var(--muted)">
+        <div style="font-size:24px;margin-bottom:6px">🍽️</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px">まだスタンプなし</div>
+        <div style="font-size:11px">QRチェックインするとスタンプが貯まります</div>
+      </div>
+    `;
+    return;
+  }
+
+  const cards = storeStamps.map(({ store, count }) => {
+    const filled = count % 10 === 0 ? 10 : count % 10;
+    const stars = Array.from({length:10}, (_, i) => `<span style="font-size:16px">${i < filled ? '⭐' : '☆'}</span>`).join('');
+    const total = count;
+    const next = 10 - filled;
+    return `
+      <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700">${store.name}</div>
+          <div style="font-size:11px;color:var(--muted)">計${total}回</div>
+        </div>
+        <div style="letter-spacing:2px;margin-bottom:6px">${stars}</div>
+        <div style="font-size:11px;color:${next===0?'var(--brand)':'var(--sub)'}">
+          ${next === 0 ? '🎉 特典GET！次の10回チャレンジ中' : `あと${next}回でクーポン！`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="lv-section-label">スタンプカード</div>
+    ${cards}
+  `;
+}
+
+// ── チャットで店舗シェア ──────────────────────────────────────
+function openStoreShareFromChat() {
+  const list = STORES.slice().sort((a,b) => cong[a.id] - cong[b.id]).slice(0, 10);
+  const sheetEl = document.createElement('div');
+  sheetEl.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:2000;background:#fff;border-radius:24px 24px 0 0;padding:16px;max-height:70vh;overflow-y:auto;box-shadow:0 -4px 30px rgba(0,0,0,0.2)';
+  sheetEl.innerHTML = `
+    <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:15px;font-weight:900;margin-bottom:12px">🏪 どのお店を送る？</div>
+    ${list.map(s => {
+      const p = cong[s.id];
+      return `<div onclick="shareStoreInChat(${s.id});document.querySelectorAll('#storeSharePicker,[data-storeShareBg]').forEach(e=>e.remove())" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <div style="font-size:24px">${s.emoji}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${s.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.genre} · ${cWait(p)}</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:${cColor(p)}"></div>
+      </div>`;
+    }).join('')}
+  `;
+  sheetEl.id = 'storeSharePicker';
+  const bg = document.createElement('div');
+  bg.style.cssText = 'position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,0.4)';
+  bg.dataset.storeShareBg = '1';
+  bg.onclick = () => { sheetEl.remove(); bg.remove(); };
+  document.body.appendChild(bg);
+  document.body.appendChild(sheetEl);
+}
+
+function shareStoreInChat(storeId) {
+  const s = STORES.find(x => x.id === storeId);
+  if(!s) return;
+  const p = cong[s.id];
+  const msg = `🏪 ${s.name}\n${s.genre} · ${s.price}\n${cWait(p)} · ${s.hours}`;
+  const input = document.getElementById('chatInput');
+  if(input) input.value = msg;
+  sendChatMsg();
+}
+
+// ── QRスキャン・チェックイン履歴 ─────────────────────────────
+function openOwnerQRScanner() {
+  showToast('📷 カメラ機能は近日公開予定です');
+}
+
+function showQRCheckLog() {
+  const storeId = ownerStoreId;
+  db.collection('checkins').where('storeId','==',storeId)
+    .orderBy('ts','desc').limit(20).get().then(snap => {
+      if(snap.empty){ showToast('まだチェックイン記録がありません'); return; }
+      const rows = snap.docs.map(d => {
+        const data = d.data();
+        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
+        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>${data.userName || '匿名'}</span>
+          <span style="color:var(--muted)">${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}</span>
+        </div>`;
+      }).join('');
+      document.getElementById('detailSheet').innerHTML = `
+        <div class="sheet-handle"></div>
+        <div style="padding:20px 18px 40px">
+          <div style="font-size:17px;font-weight:900;margin-bottom:16px">📋 チェックイン履歴</div>
+          ${rows}
+        </div>
+      `;
+      document.getElementById('detailOverlay').classList.add('open');
+    }).catch(() => showToast('📋 履歴取得に失敗しました'));
+}
+
+// ── オーナー統計 ──────────────────────────────────────────────
+function renderOwnerStats() {
+  const s = STORES.find(x => x.id === ownerStoreId);
+  const od = ownerData[ownerStoreId] || {};
+  const curPlan = s?.plan || 'ライト';
+  const body = document.getElementById('ownerStatsBody');
+  if(!body) return;
+
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+
+  body.innerHTML = `
+    <div style="padding:16px">
+      <div style="font-size:18px;font-weight:900;margin-bottom:16px;color:var(--text)">📊 統計ダッシュボード</div>
+
+      ${curPlan === 'ライト' ? `
+      <div style="background:var(--surface);border-radius:14px;padding:20px;text-align:center;border:1.5px dashed var(--border);margin-bottom:16px">
+        <div style="font-size:32px;margin-bottom:8px">🔒</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">統計はスタンダードプラン以上で利用可能</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">アプリ経由の来客数・閲覧数などを確認できます</div>
+        <button onclick="showToast('プランのアップグレードはお問い合わせください')" style="font-size:12px;font-weight:700;background:var(--grad);color:#fff;border:none;border-radius:10px;padding:8px 18px;cursor:pointer">⬆️ アップグレード</button>
+      </div>` : `
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);text-align:center">
+          <div style="font-size:28px;font-weight:900;color:var(--brand)" id="stat-views">-</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">今日の閲覧数</div>
+        </div>
+        <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);text-align:center">
+          <div style="font-size:28px;font-weight:900;color:#27ae60" id="stat-checkins">-</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">チェックイン数</div>
+        </div>
+        <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);text-align:center">
+          <div style="font-size:28px;font-weight:900;color:#e67e22" id="stat-week">-</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">今週の閲覧</div>
+        </div>
+        <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);text-align:center">
+          <div style="font-size:28px;font-weight:900;color:#8e44ad" id="stat-favs">-</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">お気に入り登録</div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📈 今日の混雑推移</div>
+        <div id="congChart" style="height:80px;display:flex;align-items:flex-end;gap:3px">
+          <div style="font-size:11px;color:var(--muted);margin:auto">データを集計中...</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted)">
+          <span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span>
+        </div>
+      </div>
+
+      ${(curPlan==='スタンダード'||curPlan==='プレミアム') ? `
+      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">💼 バイト応募状況</div>
+        <div style="font-size:13px;color:var(--muted)" id="stat-jobs-summary">集計中...</div>
+      </div>` : ''}
+
+      ${curPlan==='プレミアム' ? `
+      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">📱 チェックイン詳細（直近7日）</div>
+        <div id="stat-checkin-chart" style="font-size:13px;color:var(--muted)">読み込み中...</div>
+      </div>` : ''}
+      `}
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">データは毎日更新されます</div>
+    </div>
+  `;
+
+  if(curPlan !== 'ライト') {
+    loadOwnerStats(String(s.id), curPlan, todayKey);
+  }
+}
+
+function loadOwnerStats(storeId, plan, todayKey) {
+  db.collection('stats').doc(storeId).get().then(doc => {
+    const data = doc.exists ? doc.data() : {};
+    const todayViews = data[`views_${todayKey}`] || 0;
+    const weekViews = [0,1,2,3,4,5,6].reduce((sum, d) => {
+      const dt = new Date(); dt.setDate(dt.getDate() - d);
+      const k = `views_${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}`;
+      return sum + (data[k] || 0);
+    }, 0);
+    const el = document.getElementById('stat-views');
+    if(el) el.textContent = todayViews;
+    const elW = document.getElementById('stat-week');
+    if(elW) elW.textContent = weekViews;
+
+    const favs = (ownerData[storeId]?.likedBy || []).length;
+    const elF = document.getElementById('stat-favs');
+    if(elF) elF.textContent = favs;
+
+    const hours = Array.from({length: 24}, (_, h) => data[`cong_${todayKey}_${h}`] || 0);
+    const maxH = Math.max(...hours, 1);
+    const chartEl = document.getElementById('congChart');
+    if(chartEl) {
+      chartEl.innerHTML = hours.map((v, h) => {
+        const pct = Math.round((v / maxH) * 100);
+        const col = v < 20 ? '#2ecc71' : v < 50 ? '#95c41f' : v < 70 ? '#f39c12' : v < 90 ? '#e74c3c' : '#c0392b';
+        const isNow = h === new Date().getHours();
+        return `<div style="flex:1;background:${v>0?col:'#f0e8e8'};height:${Math.max(pct,4)}%;border-radius:3px 3px 0 0;${isNow?'outline:2px solid var(--brand);':''}" title="${h}時: ${v}%"></div>`;
+      }).join('');
+    }
+  }).catch(() => {});
+
+  if(plan === 'プレミアム') {
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    db.collection('checkins').where('storeId','==',storeId)
+      .where('ts','>=',todayStart).get().then(snap => {
+        const el = document.getElementById('stat-checkins');
+        if(el) el.textContent = snap.size;
+
+        const chartEl = document.getElementById('stat-checkin-chart');
+        if(chartEl) {
+          const byDay = {};
+          snap.docs.forEach(d => {
+            const dt = d.data().ts?.toDate ? d.data().ts.toDate() : new Date();
+            const k = `${dt.getMonth()+1}/${dt.getDate()}`;
+            byDay[k] = (byDay[k] || 0) + 1;
+          });
+          const days = Array.from({length:7}, (_,i)=>{
+            const dt = new Date(); dt.setDate(dt.getDate()-i);
+            return `${dt.getMonth()+1}/${dt.getDate()}`;
+          }).reverse();
+          chartEl.innerHTML = days.map(d => `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:12px;color:var(--sub);width:36px">${d}</span>
+              <div style="flex:1;background:var(--bg);border-radius:4px;height:18px;margin:0 8px;overflow:hidden">
+                <div style="width:${Math.min((byDay[d]||0)/10*100,100)}%;height:100%;background:var(--grad);border-radius:4px;transition:width 0.5s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:var(--brand);width:24px;text-align:right">${byDay[d]||0}</span>
+            </div>
+          `).join('');
+        }
+      }).catch(() => {
+        const el = document.getElementById('stat-checkins');
+        if(el) el.textContent = '0';
+      });
+  } else {
+    const el = document.getElementById('stat-checkins');
+    if(el) { el.textContent = '-'; el.style.color = 'var(--muted)'; }
+  }
+
+  if(plan === 'スタンダード' || plan === 'プレミアム') {
+    const jobs = ownerData[storeId]?.jobs?.filter(j => j.active) || [];
+    const el = document.getElementById('stat-jobs-summary');
+    if(el) el.textContent = jobs.length > 0 ? `${jobs.length}件掲載中` : '現在掲載なし';
+  }
+}
+
+// ── 応募者管理 ────────────────────────────────────────────────
+function loadApplicants() {
+  const store = STORES.find(x => x.id === ownerStoreId);
+  if(!store) return;
+  db.collection('applications').where('storeName','==',store.name)
+    .limit(20).get().then(snap => {
+      const el = document.getElementById('applicantsList');
+      if(!el) return;
+      if(snap.empty) {
+        el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px">まだ応募者がいません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => {
+        const data = d.data();
+        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
+        const dateStr = `${dt.getMonth()+1}/${dt.getDate()}`;
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:13px;font-weight:700">${data.applicantName}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${data.dept||''} · ${data.jobTitle}</div>
+              <div style="font-size:12px;color:var(--brand);margin-top:3px">📱 ${data.contact}</div>
+              ${data.message?`<div style="font-size:11px;color:var(--sub);margin-top:4px;font-style:italic">"${data.message}"</div>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px">${dateStr}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }).catch(() => {
+      const el = document.getElementById('applicantsList');
+      if(el) el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center">応募者データを取得できませんでした</div>';
+    });
+}
+
+// ── プルトゥリフレッシュ ──────────────────────────────────────
+(function setupPullToRefresh() {
+  let startY = 0, pulling = false;
+  const indicator = document.createElement('div');
+  indicator.id = 'ptrIndicator';
+  indicator.style.cssText = 'position:fixed;top:calc(var(--topbar-h));left:50%;transform:translateX(-50%);z-index:500;transition:opacity 0.3s;opacity:0;pointer-events:none;background:#fff;border-radius:20px;padding:6px 14px;box-shadow:0 2px 12px rgba(0,0,0,0.15);font-size:13px;font-weight:700;color:var(--brand);display:flex;align-items:center;gap:6px';
+  indicator.innerHTML = '↓ 引いて更新';
+  document.body.appendChild(indicator);
+
+  document.addEventListener('touchstart', e => {
+    if(window.scrollY === 0) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if(!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if(dy > 30) {
+      indicator.style.opacity = '1';
+      indicator.innerHTML = dy > 80 ? '↑ 離して更新' : '↓ 引いて更新';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if(!pulling) return;
+    const dy = e.changedTouches[0].clientY - startY;
+    pulling = false;
+    indicator.style.opacity = '0';
+    if(dy > 80) {
+      indicator.innerHTML = '🔄 更新中...';
+      indicator.style.opacity = '1';
+      renderFeed();
+      renderStories();
+      showToast('🔄 更新しました');
+      setTimeout(() => indicator.style.opacity = '0', 800);
+    }
+  }, { passive: true });
+})();
+
+// ── QRチェックイン処理（URLパラメータ） ──────────────────────
+(function handleCheckinParam() {
+  const params = new URLSearchParams(location.search);
+  const storeId = params.get('checkin');
+  if(!storeId) return;
+  history.replaceState({}, document.title, location.pathname);
+  const store = STORES.find(x => x.id === storeId);
+  if(!store) return;
+
+  const doCheckin = (userName) => {
+    const checkData = {
+      storeId,
+      storeName: store.name,
+      userName: userName || '匿名',
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    db.collection('checkins').add(checkData).then(() => {
+      const stampKey = `stamps_${storeId}`;
+      let stamps = parseInt(localStorage.getItem(stampKey) || '0') + 1;
+      localStorage.setItem(stampKey, stamps);
+      const todayKey = `${new Date().getFullYear()}-${new Date().getMonth()+1}-${new Date().getDate()}`;
+      db.collection('stats').doc(storeId).set({
+        [`views_${todayKey}`]: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true });
+
+      showCheckinSuccess(store.name, stamps);
+    }).catch(() => showCheckinSuccess(store.name, 0));
+  };
+
+  setTimeout(() => {
+    if(currentGoogleUser) {
+      doCheckin(currentGoogleUser.displayName);
+    } else {
+      doCheckin(myCode || 'ゲスト');
+    }
+  }, 600);
+})();
+
+function showCheckinSuccess(storeName, stamps) {
+  const stampCount = stamps % 10 || 10;
+  const nextStamp = 10 - (stamps % 10 === 0 ? 10 : stamps % 10);
+  const starsHtml = Array.from({length:10}, (_, i) => `<span style="font-size:22px">${i < stampCount ? '⭐' : '☆'}</span>`).join('');
+
+  document.getElementById('detailSheet').innerHTML = `
+    <div class="sheet-handle"></div>
+    <div style="padding:28px 20px 40px;text-align:center">
+      <div style="font-size:48px;margin-bottom:8px">✅</div>
+      <div style="font-size:22px;font-weight:900;margin-bottom:4px">${storeName}にチェックイン！</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:24px">来店記録が保存されました</div>
+
+      <div style="background:var(--brand-light);border-radius:16px;padding:20px;margin-bottom:20px">
+        <div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:10px">🎟️ スタンプカード</div>
+        <div style="letter-spacing:4px;margin-bottom:8px">${starsHtml}</div>
+        <div style="font-size:12px;color:var(--sub)">
+          ${nextStamp > 0 ? `あと<strong>${nextStamp}回</strong>でクーポンGet！` : '🎉 スタンプ10個達成！特典が使えます'}
+        </div>
+      </div>
+
+      <button onclick="document.getElementById('detailOverlay').classList.remove('open');document.body.style.overflow=''"
+        style="width:100%;padding:14px;background:var(--grad);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">
+        OK
+      </button>
+    </div>
+  `;
+  document.getElementById('detailOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
 // ─── INIT ────────────────────────────────────────────────────
 renderStories();
 renderFeed();
@@ -5940,12 +6587,32 @@ renderSituationGrid();
 renderPersonRow();
 renderGenreGrid();
 
-// Service Worker 登録
+// 古いService Workerをすべて解除（キャッシュ問題の根本対策）
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    console.log('SW登録完了:', reg.scope);
-  }).catch(e => console.warn('SW登録失敗:', e));
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for(const reg of registrations){
+      reg.unregister();
+      console.log('SW解除:', reg.scope);
+    }
+  });
 }
+
+// ── ページ読み込み時にロールを自動復元 ──────────────────────────
+(function autoRestoreRole(){
+  const savedRole = localStorage.getItem('waseMeshiRole');
+  if(savedRole === 'user'){
+    const screen = document.getElementById('roleScreen');
+    if(screen){ screen.style.display = 'none'; }
+    document.getElementById('userUI').style.display = 'block';
+    currentRole = 'user';
+    initUserUI();
+    const savedTab = localStorage.getItem('waseMeshiTab') || 'home';
+    switchTab(savedTab);
+  }
+  if(savedRole === 'owner'){
+    localStorage.removeItem('waseMeshiRole');
+  }
+})()
 </script>
 </body>
 </html>
