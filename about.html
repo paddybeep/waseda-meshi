@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ワセ飯 — 早大生のためのリアルタイム飯マップ</title>
+<meta name="description" content="早稲田大学周辺の飲食店をリアルタイムで探せる。混雑状況・マップ・ランチメイト機能搭載。">
+<style>
+  :root {
+    --brand: #8C1515;
+    --brand2: #6B0F0F;
+    --brand3: #B22222;
+    --gold: #C9A84C;
+    --bg: #ffffff;
+    --surface: #fafafa;
+    --surface2: #f3eded;
+    --border: #ede0e0;
+    --text: #1a0a0a;
+    --sub: #5a3a3a;
+    --muted: #9e7a7a;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--brand);
+    text-decoration: none;
+    letter-spacing: -0.5px;
+  }
+  .nav-cta {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(140,21,21,0.25);
+  }
+  .nav-cta:hover { background: var(--brand2); transform: scale(1.04); box-shadow: 0 4px 20px rgba(140,21,21,0.35); }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 24px 80px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, #fff 0%, #fdf5f5 60%, #fae8e8 100%);
+  }
+  .hero-circles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .hero-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(140,21,21,0.08), transparent 70%);
+    animation: float 8s ease-in-out infinite;
+  }
+  .hero-circle:nth-child(1) { width: 600px; height: 600px; top: -200px; left: -150px; animation-delay: 0s; }
+  .hero-circle:nth-child(2) { width: 400px; height: 400px; bottom: -100px; right: -100px; animation-delay: -3s; }
+  .hero-circle:nth-child(3) { width: 200px; height: 200px; top: 30%; right: 15%; animation-delay: -5s; background: radial-gradient(circle, rgba(201,168,76,0.1), transparent 70%); }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.03); }
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1.5px solid rgba(140,21,21,0.25);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--brand);
+    font-weight: 700;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 12px rgba(140,21,21,0.1);
+    animation: hero-badge-in 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes hero-badge-in {
+    from { opacity: 0; transform: translateY(-16px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .hero h1 {
+    font-size: clamp(52px, 12vw, 100px);
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: var(--brand);
+    margin-bottom: 12px;
+    animation: hero-title-in 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+  }
+  @keyframes hero-title-in {
+    from { opacity: 0; transform: translateY(32px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .hero-tagline {
+    font-size: clamp(18px, 3.5vw, 26px);
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 12px;
+    animation: hero-in 0.6s ease 0.2s both;
+  }
+  .hero-sub {
+    font-size: clamp(14px, 2.5vw, 17px);
+    color: var(--muted);
+    margin-bottom: 44px;
+    max-width: 480px;
+    animation: hero-in 0.6s ease 0.3s both;
+  }
+  @keyframes hero-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 64px;
+    animation: hero-in 0.6s ease 0.4s both;
+  }
+  .btn-primary {
+    background: var(--brand);
+    color: #fff;
+    padding: 15px 36px;
+    border-radius: 28px;
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 8px 32px rgba(140,21,21,0.35);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary:hover { background: var(--brand2); transform: translateY(-3px); box-shadow: 0 16px 48px rgba(140,21,21,0.4); }
+  .btn-secondary {
+    background: #fff;
+    color: var(--sub);
+    padding: 15px 28px;
+    border-radius: 28px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1.5px solid var(--border);
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .btn-secondary:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    animation: scroll-bounce 2s ease-in-out infinite;
+  }
+  @keyframes scroll-bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.7; }
+    50% { transform: translateX(-50%) translateY(8px); opacity: 1; }
+  }
+  .scroll-arrow {
+    width: 24px; height: 24px;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(45deg);
+  }
+
+  /* ─── STATS ─── */
+  .stats-section {
+    background: var(--brand);
+    padding: 56px 24px;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 56px;
+    flex-wrap: wrap;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .stat-item { text-align: center; }
+  .stat-num {
+    font-size: 48px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+    display: block;
+  }
+  .stat-num.counting { animation: count-pop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes count-pop {
+    0% { transform: scale(0.7); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .stat-label { color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 6px; }
+
+  /* ─── SECTION ─── */
+  .section-wrap { padding: 88px 24px; max-width: 1100px; margin: 0 auto; }
+  .section-tag {
+    display: inline-block;
+    background: rgba(140,21,21,0.08);
+    border: 1px solid rgba(140,21,21,0.2);
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .section-title {
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 14px;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+  .section-desc {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 52px;
+    line-height: 1.8;
+  }
+
+  /* ─── FEATURES ─── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  .feature-card {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brand), var(--brand3));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+  .feature-card:hover {
+    border-color: rgba(140,21,21,0.3);
+    transform: translateY(-6px);
+    box-shadow: 0 16px 48px rgba(140,21,21,0.12);
+  }
+  .feature-card:hover::after { transform: scaleX(1); }
+  .feature-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+    display: block;
+    animation: none;
+    transition: transform 0.3s;
+  }
+  .feature-card:hover .feature-icon { transform: scale(1.15) rotate(-5deg); }
+  .feature-title { font-size: 18px; font-weight: 800; margin-bottom: 10px; color: var(--text); }
+  .feature-desc { color: var(--muted); font-size: 14px; line-height: 1.8; }
+
+  /* ─── APP DEMO ─── */
+  .app-demo {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 88px 24px;
+  }
+  .app-demo-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .mockup-wrap { display: flex; justify-content: center; }
+  .phone-frame {
+    width: 260px;
+    height: 520px;
+    background: #fff;
+    border-radius: 40px;
+    border: 2px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(140,21,21,0.15), 0 4px 16px rgba(0,0,0,0.08);
+    position: relative;
+    animation: phone-in 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.2s both;
+  }
+  @keyframes phone-in {
+    from { opacity: 0; transform: translateY(40px) rotate(-3deg); }
+    to { opacity: 1; transform: translateY(0) rotate(0); }
+  }
+  .phone-topbar {
+    background: var(--brand);
+    padding: 14px 16px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .phone-logo { color: #fff; font-weight: 900; font-size: 16px; }
+  .phone-content { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+  .mock-filter {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .mock-filter-chip {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(140,21,21,0.1);
+    color: var(--brand);
+    border: 1px solid rgba(140,21,21,0.2);
+  }
+  .mock-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 11px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: transform 0.2s;
+    animation: card-slide 0.5s ease both;
+  }
+  .mock-card:nth-child(1) { animation-delay: 0.4s; }
+  .mock-card:nth-child(2) { animation-delay: 0.55s; }
+  .mock-card:nth-child(3) { animation-delay: 0.7s; }
+  @keyframes card-slide {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .mock-avatar {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #8C1515, #C9A84C);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .mock-info { flex: 1; min-width: 0; }
+  .mock-name { font-size: 11px; font-weight: 700; color: var(--text); }
+  .mock-meta { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .mock-crowd { margin-top: 5px; display: flex; gap: 3px; align-items: center; }
+  .crowd-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0d4d4; }
+  .crowd-dot.on { background: #22c55e; animation: dot-pulse 2s ease-in-out infinite; }
+  .crowd-dot.half { background: #f59e0b; animation: dot-pulse 2s ease-in-out infinite 0.3s; }
+  .crowd-dot.yellow { background: #eab308; animation: dot-pulse 2s ease-in-out infinite 0.6s; }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.2); }
+  }
+  .phone-nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 6px;
+  }
+  .phone-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    color: var(--muted);
+    padding: 4px;
+  }
+  .phone-nav-item.active { color: var(--brand); }
+  .phone-nav-icon { font-size: 15px; }
+
+  .feature-list { display: flex; flex-direction: column; gap: 16px; }
+  .feature-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .feature-list-item:hover { border-color: rgba(140,21,21,0.3); box-shadow: 0 4px 16px rgba(140,21,21,0.08); }
+  .feature-check {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(140,21,21,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    color: var(--brand);
+    font-weight: 900;
+  }
+  .feature-list-text { font-size: 14px; color: var(--sub); padding-top: 2px; line-height: 1.6; }
+  .feature-list-text strong { color: var(--text); display: block; font-size: 15px; margin-bottom: 2px; }
+
+  /* ─── HOW IT WORKS ─── */
+  .how-bg {
+    background: linear-gradient(160deg, #fdf5f5, #fff);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 88px 24px;
+  }
+  .how-inner { max-width: 1000px; margin: 0 auto; }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 32px;
+    margin-top: 48px;
+    position: relative;
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+  }
+  .step-num {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 6px 20px rgba(140,21,21,0.3);
+    transition: transform 0.3s;
+  }
+  .step:hover .step-num { transform: scale(1.1) rotate(-5deg); }
+  .step-title { font-size: 16px; font-weight: 800; color: var(--text); }
+  .step-desc { color: var(--muted); font-size: 14px; line-height: 1.8; }
+
+  /* ─── PRICING ─── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .price-card {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 36px;
+    position: relative;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .price-card:hover { transform: translateY(-6px); box-shadow: 0 20px 56px rgba(0,0,0,0.1); }
+  .price-card.featured {
+    border-color: var(--brand);
+    box-shadow: 0 8px 40px rgba(140,21,21,0.18);
+  }
+  .price-card.featured:hover { box-shadow: 0 20px 64px rgba(140,21,21,0.25); }
+  .price-badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--brand);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 5px 16px;
+    border-radius: 20px;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(140,21,21,0.35);
+    animation: badge-bounce 3s ease-in-out infinite;
+  }
+  @keyframes badge-bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-4px); }
+  }
+  .price-plan { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .price-num { font-size: 48px; font-weight: 900; line-height: 1; margin-bottom: 4px; color: var(--text); }
+  .price-num small { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .price-desc { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  .price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+  .price-features li { font-size: 14px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
+  .price-features li::before { content: "✓"; color: #16a34a; font-weight: 800; font-size: 13px; }
+  .price-features li.no { color: var(--muted); }
+  .price-features li.no::before { content: "✕"; color: #d0b0b0; }
+  .price-btn {
+    display: block;
+    text-align: center;
+    padding: 13px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 15px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .price-btn-primary {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(140,21,21,0.3);
+  }
+  .price-btn-primary:hover { background: var(--brand2); transform: scale(1.02); box-shadow: 0 8px 32px rgba(140,21,21,0.4); }
+  .price-btn-secondary {
+    background: var(--surface2);
+    color: var(--sub);
+    border: 1.5px solid var(--border);
+  }
+  .price-btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
+
+  /* ─── FAQ ─── */
+  .faq-list { display: flex; flex-direction: column; gap: 8px; }
+  .faq-item {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .faq-item:hover { border-color: rgba(140,21,21,0.3); box-shadow: 0 4px 16px rgba(140,21,21,0.06); }
+  .faq-item.open { border-color: rgba(140,21,21,0.4); }
+  .faq-q {
+    padding: 18px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    user-select: none;
+    color: var(--text);
+  }
+  .faq-toggle {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    color: var(--brand);
+    font-weight: 700;
+    transition: background 0.2s, transform 0.25s;
+  }
+  .faq-item.open .faq-toggle { background: var(--brand); color: #fff; transform: rotate(45deg); }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+  }
+  .faq-item.open .faq-a { max-height: 200px; }
+  .faq-a-inner {
+    padding: 0 24px 20px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.9;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  /* ─── CTA BANNER ─── */
+  .cta-banner {
+    background: var(--brand);
+    padding: 80px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-banner::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: -60px;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    animation: float 7s ease-in-out infinite;
+  }
+  .cta-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; right: -40px;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: rgba(201,168,76,0.1);
+    animation: float 9s ease-in-out infinite reverse;
+  }
+  .cta-inner { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+  .cta-banner h2 {
+    font-size: clamp(26px, 5vw, 44px);
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+  .cta-banner p { color: rgba(255,255,255,0.8); font-size: 17px; margin-bottom: 36px; }
+  .btn-white {
+    background: #fff;
+    color: var(--brand);
+    padding: 16px 40px;
+    border-radius: 30px;
+    font-size: 17px;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-white:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 16px 48px rgba(0,0,0,0.25); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: #fff;
+    border-top: 1px solid var(--border);
+    padding: 48px 24px 32px;
+    text-align: center;
+  }
+  .footer-logo { font-size: 22px; font-weight: 900; color: var(--brand); margin-bottom: 6px; }
+  .footer-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .footer-links { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+  .footer-links a { color: var(--muted); font-size: 13px; text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--brand); }
+  .footer-copy { color: #d0c0c0; font-size: 12px; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .app-demo-inner { grid-template-columns: 1fr; text-align: center; }
+    .feature-list-item { text-align: left; }
+    .stats { gap: 28px; }
+    .cta-banner { padding: 60px 24px; }
+  }
+  @media (max-width: 480px) {
+    .features-grid { grid-template-columns: 1fr; }
+    .phone-frame { width: 240px; height: 480px; }
+  }
+
+  /* ─── SCROLL ANIMATIONS ─── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-32px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+  }
+  .reveal-left.visible { opacity: 1; transform: translateX(0); }
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(32px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+  }
+  .reveal-right.visible { opacity: 1; transform: translateX(0); }
+  .reveal-scale {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.65s ease, transform 0.65s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .reveal-scale.visible { opacity: 1; transform: scale(1); }
+
+  /* delay helpers */
+  .d1 { transition-delay: 0.05s; }
+  .d2 { transition-delay: 0.12s; }
+  .d3 { transition-delay: 0.19s; }
+  .d4 { transition-delay: 0.26s; }
+  .d5 { transition-delay: 0.33s; }
+  .d6 { transition-delay: 0.40s; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">ワセ飯</a>
+  <a href="waseda-meshi.html" class="nav-cta">アプリを開く →</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-circles">
+    <div class="hero-circle"></div>
+    <div class="hero-circle"></div>
+    <div class="hero-circle"></div>
+  </div>
+  <div class="hero-badge">🎓 早稲田大学公認</div>
+  <h1>ワセ飯</h1>
+  <div class="hero-tagline">「あの店、今空いてる？」がワンタップでわかる</div>
+  <p class="hero-sub">早大生のためのリアルタイム飯マップ。混雑・場所・ジャンルをまとめてチェック。</p>
+  <div class="hero-actions">
+    <a href="waseda-meshi.html" class="btn-primary">🍜 今すぐ使う（無料）</a>
+    <a href="#features" class="btn-secondary">機能を見る</a>
+  </div>
+  <div class="scroll-hint">
+    <div class="scroll-arrow"></div>
+    <span>スクロール</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-section">
+  <div class="stats">
+    <div class="stat-item reveal d1">
+      <span class="stat-num" data-target="67" data-suffix="+">0</span>
+      <div class="stat-label">登録店舗数</div>
+    </div>
+    <div class="stat-item reveal d2">
+      <span class="stat-num" data-target="3">0</span>
+      <div class="stat-label">対応キャンパス</div>
+    </div>
+    <div class="stat-item reveal d3">
+      <span class="stat-num">5段階</span>
+      <div class="stat-label">混雑レベル表示</div>
+    </div>
+    <div class="stat-item reveal d4">
+      <span class="stat-num">無料</span>
+      <div class="stat-label">学生利用料金</div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="section-wrap" id="features">
+  <div class="reveal">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">飯選びをもっとスマートに</h2>
+    <p class="section-desc">混雑・場所・ジャンル・シーン——あらゆる軸で最適な一軒が見つかる。</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card reveal d1">
+      <span class="feature-icon">🔴</span>
+      <div class="feature-title">リアルタイム混雑</div>
+      <div class="feature-desc">5段階のリアルタイム混雑表示。「今すぐ行けるか」が一目でわかる。オーナーが随時更新するから鮮度抜群。</div>
+    </div>
+    <div class="feature-card reveal d2">
+      <span class="feature-icon">🗺️</span>
+      <div class="feature-title">キャンパス周辺マップ</div>
+      <div class="feature-desc">早稲田・戸山・西早稲田の3キャンパスに対応。半径600mの店舗をまとめてチェック。</div>
+    </div>
+    <div class="feature-card reveal d3">
+      <span class="feature-icon">👥</span>
+      <div class="feature-title">ランチメイト</div>
+      <div class="feature-desc">「一緒に飯食いたい人いない？」をリアルタイム募集。ぼっち飯とはもうサヨナラ。</div>
+    </div>
+    <div class="feature-card reveal d4">
+      <span class="feature-icon">🔍</span>
+      <div class="feature-title">シーン別フィルター</div>
+      <div class="feature-desc">「ひとりで静かに」「大人数でワイワイ」「今日は中華が食べたい」——今の気分でズバッと絞り込み。</div>
+    </div>
+    <div class="feature-card reveal d5">
+      <span class="feature-icon">💼</span>
+      <div class="feature-title">バイト募集掲示板</div>
+      <div class="feature-desc">近くの飲食店のバイト情報もまとめて確認。お気に入りの店で働くチャンス。</div>
+    </div>
+    <div class="feature-card reveal d6">
+      <span class="feature-icon">📍</span>
+      <div class="feature-title">GPS自動検出</div>
+      <div class="feature-desc">現在地から自動でキャンパスを判定。余計な操作なしにすぐ近くの店が見つかる。</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP DEMO -->
+<div class="app-demo">
+  <div class="app-demo-inner">
+    <div class="mockup-wrap reveal-left">
+      <div class="phone-frame">
+        <div class="phone-topbar">
+          <span class="phone-logo">ワセ飯</span>
+          <span style="color:rgba(255,255,255,0.75);font-size:11px">早稲田キャンパス</span>
+        </div>
+        <div class="phone-content">
+          <div class="mock-filter">
+            <div class="mock-filter-chip">🍜 ラーメン</div>
+            <div class="mock-filter-chip">👤 ひとり</div>
+            <div class="mock-filter-chip">🟢 空いてる</div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍜</div>
+            <div class="mock-info">
+              <div class="mock-name">わせだ食堂</div>
+              <div class="mock-meta">ラーメン・早稲田 • 徒歩2分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot half"></div>
+                <div class="crowd-dot"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍱</div>
+            <div class="mock-info">
+              <div class="mock-name">キッチン早大前</div>
+              <div class="mock-meta">定食・早稲田 • 徒歩4分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot"></div>
+                <div class="crowd-dot"></div>
+                <div class="crowd-dot"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍣</div>
+            <div class="mock-info">
+              <div class="mock-name">海鮮丼 ひだまり</div>
+              <div class="mock-meta">和食・早稲田 • 徒歩6分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item active"><div class="phone-nav-icon">🏠</div><div>ホーム</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🔍</div><div>さがす</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">👥</div><div>メイト</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🗺️</div><div>マップ</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="reveal-right">
+      <div class="section-tag">App Preview</div>
+      <h2 class="section-title">シンプルで<br>使いやすいUI</h2>
+      <p class="section-desc">ランチ5分前でも迷わず操作できる設計。スマホ最適化済み。</p>
+      <div class="feature-list">
+        <div class="feature-list-item">
+          <div class="feature-check">✓</div>
+          <div class="feature-list-text">
+            <strong>ワンタップで混雑確認</strong>
+            カード一覧で一目把握、詳細ページ不要
+          </div>
+        </div>
+        <div class="feature-list-item">
+          <div class="feature-check">✓</div>
+          <div class="feature-list-text">
+            <strong>プルリフレッシュ対応</strong>
+            引っ張るだけで最新情報に更新
+          </div>
+        </div>
+        <div class="feature-list-item">
+          <div class="feature-check">✓</div>
+          <div class="feature-list-text">
+            <strong>ホーム画面に追加OK</strong>
+            PWA対応でアプリ感覚で使える
+          </div>
+        </div>
+        <div class="feature-list-item">
+          <div class="feature-check">✓</div>
+          <div class="feature-list-text">
+            <strong>Googleでサインイン</strong>
+            アカウント作成の手間なし
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="how-bg">
+  <div class="how-inner">
+    <div class="reveal">
+      <div class="section-tag">How it works</div>
+      <h2 class="section-title">使い方は超シンプル</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal d1">
+        <div class="step-num">1</div>
+        <div class="step-title">アプリを開く</div>
+        <div class="step-desc">ブラウザからアクセス。インストール不要。ホーム画面に追加すればより快適。</div>
+      </div>
+      <div class="step reveal d2">
+        <div class="step-num">2</div>
+        <div class="step-title">キャンパスを選ぶ</div>
+        <div class="step-desc">GPSで自動判定、またはタップで切替。早稲田・戸山・西早稲田に対応。</div>
+      </div>
+      <div class="step reveal d3">
+        <div class="step-num">3</div>
+        <div class="step-title">混雑を確認する</div>
+        <div class="step-desc">リアルタイムの混雑レベルをカード一覧でサクッとチェック。5段階表示でひと目でわかる。</div>
+      </div>
+      <div class="step reveal d4">
+        <div class="step-num">4</div>
+        <div class="step-title">お店に向かう</div>
+        <div class="step-desc">地図で場所を確認。ランチメイトで友達を誘えばさらに楽しい。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="section-wrap" id="pricing">
+  <div class="reveal">
+    <div class="section-tag">For Owners</div>
+    <h2 class="section-title">飲食店オーナーの方へ</h2>
+    <p class="section-desc">ワセ飯に掲載して、早大生集客を強化しませんか？</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="price-card reveal d1">
+      <div class="price-plan">ライト</div>
+      <div class="price-num">無料<small>/月</small></div>
+      <div class="price-desc">まずは掲載してみたい方に</div>
+      <ul class="price-features">
+        <li>店舗情報掲載</li>
+        <li>混雑状況の更新（1日3回）</li>
+        <li>マップ表示</li>
+        <li class="no">バイト募集掲載</li>
+        <li class="no">来店統計レポート</li>
+        <li class="no">チャット問い合わせ</li>
+      </ul>
+      <a href="waseda-meshi.html" class="price-btn price-btn-secondary">無料で始める</a>
+    </div>
+    <div class="price-card featured reveal d2">
+      <div class="price-badge">🔥 人気 No.1</div>
+      <div class="price-plan">スタンダード</div>
+      <div class="price-num">¥480<small>/月</small></div>
+      <div class="price-desc">集客を本気で伸ばしたい方に</div>
+      <ul class="price-features">
+        <li>店舗情報掲載</li>
+        <li>混雑状況の更新（無制限）</li>
+        <li>マップ表示</li>
+        <li>バイト募集掲載</li>
+        <li>来店統計レポート</li>
+        <li class="no">チャット問い合わせ</li>
+      </ul>
+      <a href="waseda-meshi.html" class="price-btn price-btn-primary">スタンダードを始める</a>
+    </div>
+    <div class="price-card reveal d3">
+      <div class="price-plan">プレミアム</div>
+      <div class="price-num">¥980<small>/月</small></div>
+      <div class="price-desc">フル活用でリピーター獲得</div>
+      <ul class="price-features">
+        <li>店舗情報掲載</li>
+        <li>混雑状況の更新（無制限）</li>
+        <li>マップ表示</li>
+        <li>バイト募集掲載</li>
+        <li>来店統計レポート</li>
+        <li>チャット問い合わせ</li>
+      </ul>
+      <a href="waseda-meshi.html" class="price-btn price-btn-secondary">プレミアムを始める</a>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="section-wrap" id="faq" style="padding-top:0;">
+  <div class="reveal">
+    <div class="section-tag">FAQ</div>
+    <h2 class="section-title">よくある質問</h2>
+  </div>
+  <div class="faq-list">
+    <div class="faq-item reveal d1">
+      <div class="faq-q">早稲田大学の学生でないと使えませんか？<div class="faq-toggle">＋</div></div>
+      <div class="faq-a"><div class="faq-a-inner">いいえ、誰でも使えます。ただし早稲田大学周辺の店舗情報に特化しているため、早大生・教職員・近隣の方が最も活用できるサービスです。</div></div>
+    </div>
+    <div class="faq-item reveal d2">
+      <div class="faq-q">混雑情報はどうやって更新されますか？<div class="faq-toggle">＋</div></div>
+      <div class="faq-a"><div class="faq-a-inner">店舗オーナーがリアルタイムで更新します。スタンダード・プレミアムプランは無制限で更新可能です。</div></div>
+    </div>
+    <div class="faq-item reveal d3">
+      <div class="faq-q">アプリのダウンロードは必要ですか？<div class="faq-toggle">＋</div></div>
+      <div class="faq-a"><div class="faq-a-inner">不要です。ブラウザからそのまま使えます。「ホーム画面に追加」するとアプリ感覚でより快適に使えます（PWA対応）。</div></div>
+    </div>
+    <div class="faq-item reveal d4">
+      <div class="faq-q">個人情報は安全ですか？<div class="faq-toggle">＋</div></div>
+      <div class="faq-a"><div class="faq-a-inner">Googleアカウントによる認証を採用しており、パスワードはワセ飯のサーバーに保存されません。位置情報はユーザーの許可がある場合のみ取得します。</div></div>
+    </div>
+    <div class="faq-item reveal d5">
+      <div class="faq-q">店舗として掲載するにはどうすればいいですか？<div class="faq-toggle">＋</div></div>
+      <div class="faq-a"><div class="faq-a-inner">アプリ内の「オーナー登録」から申請できます。審査後、掲載が開始されます。初月無料のライトプランからお試しください。</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA BANNER -->
+<div class="cta-banner">
+  <div class="cta-inner reveal-scale">
+    <h2>今日のランチ、もう迷わない。</h2>
+    <p>ワセ飯で早稲田周辺の飲食店を探してみよう</p>
+    <a href="waseda-meshi.html" class="btn-white">🍜 ワセ飯を使う（無料）</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">ワセ飯</div>
+  <div class="footer-sub">早大生のためのリアルタイム飯マップ</div>
+  <div class="footer-links">
+    <a href="#">利用規約</a>
+    <a href="#">プライバシーポリシー</a>
+    <a href="#">お問い合わせ</a>
+    <a href="waseda-meshi.html">アプリを開く</a>
+  </div>
+  <div class="footer-copy">© 2026 ワセ飯. All rights reserved.</div>
+</footer>
+
+<script>
+// ─── スクロールリベール ───
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // カウントアップ
+      const num = e.target.querySelector('.stat-num[data-target]');
+      if (num && !num.dataset.counted) {
+        num.dataset.counted = '1';
+        countUp(num);
+      }
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => observer.observe(el));
+
+// ─── カウントアップアニメーション ───
+function countUp(el) {
+  const target = parseInt(el.dataset.target);
+  const suffix = el.dataset.suffix || '';
+  const duration = 1200;
+  const start = performance.now();
+  el.classList.add('counting');
+  function tick(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.floor(eased * target) + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── FAQ アコーディオン ───
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => {
+    const item = q.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+});
+</script>
+</body>
+</html>
