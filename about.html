@@ -72,12 +72,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    text-align: center;
     padding: 120px 24px 80px;
     position: relative;
     overflow: hidden;
     background: linear-gradient(160deg, #fff 0%, #fdf5f5 60%, #fae8e8 100%);
   }
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 56px;
+    max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .hero-text { text-align: left; }
   .hero-circles {
     position: absolute;
     inset: 0;
@@ -98,33 +107,13 @@
     50% { transform: translateY(-20px) scale(1.03); }
   }
 
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #fff;
-    border: 1.5px solid rgba(140,21,21,0.25);
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    color: var(--brand);
-    font-weight: 700;
-    margin-bottom: 28px;
-    box-shadow: 0 2px 12px rgba(140,21,21,0.1);
-    animation: hero-badge-in 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-  @keyframes hero-badge-in {
-    from { opacity: 0; transform: translateY(-16px) scale(0.9); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
   .hero h1 {
-    font-size: clamp(52px, 12vw, 100px);
+    font-size: clamp(52px, 10vw, 88px);
     font-weight: 900;
     line-height: 1.0;
     letter-spacing: -0.04em;
     color: var(--brand);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     animation: hero-title-in 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
   }
   @keyframes hero-title-in {
@@ -133,18 +122,20 @@
   }
 
   .hero-tagline {
-    font-size: clamp(18px, 3.5vw, 26px);
+    font-size: clamp(16px, 2.5vw, 22px);
     font-weight: 800;
     color: var(--text);
     margin-bottom: 12px;
     animation: hero-in 0.6s ease 0.2s both;
+    line-height: 1.4;
   }
   .hero-sub {
-    font-size: clamp(14px, 2.5vw, 17px);
+    font-size: clamp(14px, 1.8vw, 16px);
     color: var(--muted);
-    margin-bottom: 44px;
-    max-width: 480px;
+    margin-bottom: 40px;
+    max-width: 420px;
     animation: hero-in 0.6s ease 0.3s both;
+    line-height: 1.8;
   }
   @keyframes hero-in {
     from { opacity: 0; transform: translateY(20px); }
@@ -155,9 +146,27 @@
     display: flex;
     gap: 14px;
     flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 64px;
     animation: hero-in 0.6s ease 0.4s both;
+  }
+
+  /* ヒーロー スマホモックアップ */
+  .hero-phone-wrap {
+    animation: hero-phone-in 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.3s both;
+    flex-shrink: 0;
+  }
+  @keyframes hero-phone-in {
+    from { opacity: 0; transform: translateY(48px) rotate(4deg) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  }
+  .hero-phone {
+    width: 240px;
+    height: 480px;
+    background: #fff;
+    border-radius: 36px;
+    border: 2px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(140,21,21,0.18), 0 4px 16px rgba(0,0,0,0.08);
+    position: relative;
   }
   .btn-primary {
     background: var(--brand);
@@ -683,6 +692,13 @@
   .footer-copy { color: #d0c0c0; font-size: 12px; }
 
   /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+    .hero-text { text-align: center; }
+    .hero-sub { max-width: 100%; }
+    .hero-actions { justify-content: center; }
+    .hero-phone-wrap { display: none; }
+  }
   @media (max-width: 768px) {
     .app-demo-inner { grid-template-columns: 1fr; text-align: center; }
     .feature-list-item { text-align: left; }
@@ -744,13 +760,95 @@
     <div class="hero-circle"></div>
     <div class="hero-circle"></div>
   </div>
-  <div class="hero-badge">🎓 早稲田大学公認</div>
-  <h1>ワセ飯</h1>
-  <div class="hero-tagline">「あの店、今空いてる？」がワンタップでわかる</div>
-  <p class="hero-sub">早大生のためのリアルタイム飯マップ。混雑・場所・ジャンルをまとめてチェック。</p>
-  <div class="hero-actions">
-    <a href="waseda-meshi.html" class="btn-primary">🍜 今すぐ使う（無料）</a>
-    <a href="#features" class="btn-secondary">機能を見る</a>
+  <div class="hero-inner">
+    <!-- テキスト -->
+    <div class="hero-text">
+      <h1>ワセ飯</h1>
+      <div class="hero-tagline">「あの店、今空いてる？」<br>がワンタップでわかる</div>
+      <p class="hero-sub">早大生のためのリアルタイム飯マップ。混雑・場所・ジャンルをまとめてチェック。</p>
+      <div class="hero-actions">
+        <a href="waseda-meshi.html" class="btn-primary">🍜 今すぐ使う（無料）</a>
+        <a href="#features" class="btn-secondary">機能を見る</a>
+      </div>
+    </div>
+    <!-- スマホ -->
+    <div class="hero-phone-wrap">
+      <div class="hero-phone">
+        <div class="phone-topbar">
+          <span class="phone-logo">ワセ飯</span>
+          <span style="color:rgba(255,255,255,0.75);font-size:11px">早稲田</span>
+        </div>
+        <div class="phone-content">
+          <div class="mock-filter">
+            <div class="mock-filter-chip">🟢 空いてる</div>
+            <div class="mock-filter-chip">👤 ひとり</div>
+            <div class="mock-filter-chip">🍜 ラーメン</div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍜</div>
+            <div class="mock-info">
+              <div class="mock-name">わせだ食堂</div>
+              <div class="mock-meta">ラーメン・徒歩2分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot half"></div>
+                <div class="crowd-dot"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍱</div>
+            <div class="mock-info">
+              <div class="mock-name">キッチン早大前</div>
+              <div class="mock-meta">定食・徒歩4分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot"></div>
+                <div class="crowd-dot"></div>
+                <div class="crowd-dot"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍣</div>
+            <div class="mock-info">
+              <div class="mock-name">海鮮丼 ひだまり</div>
+              <div class="mock-meta">和食・徒歩6分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-card">
+            <div class="mock-avatar">🍛</div>
+            <div class="mock-info">
+              <div class="mock-name">カレー食堂 南国</div>
+              <div class="mock-meta">カレー・徒歩3分</div>
+              <div class="mock-crowd">
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot on"></div>
+                <div class="crowd-dot"></div>
+                <div class="crowd-dot"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item active"><div class="phone-nav-icon">🏠</div><div>ホーム</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🔍</div><div>さがす</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">👥</div><div>メイト</div></div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🗺️</div><div>マップ</div></div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="scroll-hint">
     <div class="scroll-arrow"></div>
