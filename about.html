@@ -35,11 +35,13 @@
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 100;
-    padding: 14px 28px;
+    padding: 0 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(255,255,255,0.88);
+    gap: 24px;
+    height: 60px;
+    background: rgba(255,255,255,0.92);
     backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
   }
@@ -49,21 +51,71 @@
     color: var(--brand);
     text-decoration: none;
     letter-spacing: -0.5px;
+    flex-shrink: 0;
   }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    justify-content: center;
+  }
+  .nav-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sub);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    transition: color 0.2s, background 0.2s;
+    white-space: nowrap;
+  }
+  .nav-link:hover { color: var(--brand); background: rgba(140,21,21,0.07); }
   .nav-cta {
     background: var(--brand);
     color: #fff;
     border: none;
-    padding: 9px 22px;
+    padding: 9px 20px;
     border-radius: 20px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     box-shadow: 0 2px 12px rgba(140,21,21,0.25);
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .nav-cta:hover { background: var(--brand2); transform: scale(1.04); box-shadow: 0 4px 20px rgba(140,21,21,0.35); }
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    padding: 6px;
+    border: none;
+    background: none;
+  }
+  .nav-hamburger span { display: block; width: 22px; height: 2px; background: var(--sub); border-radius: 2px; transition: all 0.3s; }
+  .nav-drawer {
+    display: none;
+    position: fixed;
+    top: 60px; left: 0; right: 0;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px 20px;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 99;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  .nav-drawer.open { display: flex; }
+  .nav-drawer a { font-size: 15px; font-weight: 600; color: var(--sub); text-decoration: none; padding: 12px 14px; border-radius: 12px; transition: color 0.2s, background 0.2s; }
+  .nav-drawer a:hover { color: var(--brand); background: rgba(140,21,21,0.06); }
+  @media (max-width: 720px) {
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+  }
 
   /* ─── HERO ─── */
   .hero {
@@ -750,8 +802,25 @@
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo">ワセ飯</a>
+  <div class="nav-links">
+    <a href="#features" class="nav-link">機能</a>
+    <a href="#how" class="nav-link">使い方</a>
+    <a href="#pricing" class="nav-link">お店の方へ</a>
+    <a href="#faq" class="nav-link">Q&A</a>
+  </div>
   <a href="waseda-meshi.html" class="nav-cta">アプリを開く →</a>
+  <button class="nav-hamburger" id="hamburger" aria-label="メニュー">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+<!-- モバイルドロワー -->
+<div class="nav-drawer" id="drawer">
+  <a href="#features" onclick="closeDrawer()">機能</a>
+  <a href="#how" onclick="closeDrawer()">使い方</a>
+  <a href="#pricing" onclick="closeDrawer()">お店の方へ</a>
+  <a href="#faq" onclick="closeDrawer()">Q&A</a>
+  <a href="waseda-meshi.html" style="color:var(--brand);font-weight:800;margin-top:8px;">🍜 アプリを開く</a>
+</div>
 
 <!-- HERO -->
 <div class="hero">
@@ -1024,7 +1093,7 @@
 </div>
 
 <!-- HOW IT WORKS -->
-<div class="how-bg">
+<div class="how-bg" id="how">
   <div class="how-inner">
     <div class="reveal">
       <div class="section-tag">How it works</div>
@@ -1162,6 +1231,15 @@
 </footer>
 
 <script>
+// ─── ハンバーガー ───
+const hamburger = document.getElementById('hamburger');
+const drawer = document.getElementById('drawer');
+hamburger.addEventListener('click', () => drawer.classList.toggle('open'));
+function closeDrawer() { drawer.classList.remove('open'); }
+document.addEventListener('click', e => {
+  if (!hamburger.contains(e.target) && !drawer.contains(e.target)) closeDrawer();
+});
+
 // ─── スクロールリベール ───
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(e => {
