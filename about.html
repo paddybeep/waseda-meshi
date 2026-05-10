@@ -122,35 +122,43 @@ nav {
 .stat-l { color: rgba(255,255,255,.7); font-size: 13px; margin-top: 4px; }
 @media (max-width: 480px) { .stats-inner { gap: 28px; } .stat-n { font-size: 36px; } }
 
-/* ── FEATURE SECTIONS ── */
-.feat {
-  padding: 96px 32px;
-  display: flex; align-items: center;
-  max-width: 1040px; margin: 0 auto; gap: 72px;
+/* ── FEATURES GRID ── */
+.features-section { padding: 88px 32px; max-width: 1040px; margin: 0 auto; }
+.features-section-head { text-align: center; margin-bottom: 52px; }
+.features-section-head h2 { font-size: clamp(28px, 5vw, 44px); font-weight: 900; letter-spacing: -0.025em; margin-bottom: 10px; }
+.features-section-head p { font-size: 17px; color: var(--muted); }
+.feat-tag { font-size: 12px; font-weight: 700; color: var(--brand); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; display: inline-block; }
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
 }
-.feat.rev { flex-direction: row-reverse; }
-.feat-visual { flex: 0 0 auto; width: 300px; }
-.feat-img-box {
-  width: 300px; height: 300px; border-radius: 32px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 120px; background: var(--surface);
+.feat-card {
+  background: var(--surface);
   border: 1.5px solid var(--border);
-  position: relative; overflow: hidden;
-  box-shadow: 0 12px 48px rgba(140,21,21,0.1);
+  border-radius: 24px;
+  padding: 36px 32px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  transition: transform .25s, box-shadow .25s, border-color .25s;
+}
+.feat-card:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(140,21,21,0.1); border-color: rgba(140,21,21,0.25); }
+.feat-card-icon {
+  font-size: 36px;
+  flex-shrink: 0;
+  width: 60px; height: 60px;
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
   transition: transform .3s;
 }
-.feat-img-box:hover { transform: scale(1.03) rotate(-1deg); }
-.feat-body { flex: 1; }
-.feat-tag { font-size: 12px; font-weight: 700; color: var(--brand); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
-.feat h2 { font-size: clamp(28px, 5vw, 42px); font-weight: 900; line-height: 1.2; letter-spacing: -0.025em; margin-bottom: 14px; }
-.feat p { font-size: 17px; color: var(--muted); line-height: 1.8; max-width: 380px; }
-.feat-divider { border: none; border-top: 1.5px solid var(--border); margin: 0; }
-@media (max-width: 820px) {
-  .feat, .feat.rev { flex-direction: column; text-align: center; gap: 40px; }
-  .feat-visual { width: 100%; }
-  .feat-img-box { width: 100%; max-width: 320px; height: 260px; margin: 0 auto; font-size: 90px; }
-  .feat p { max-width: 100%; }
-}
+.feat-card:hover .feat-card-icon { transform: scale(1.1) rotate(-5deg); }
+.feat-card-body { flex: 1; min-width: 0; }
+.feat-card-title { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.feat-card-desc { font-size: 14px; color: var(--muted); line-height: 1.7; }
+@media (max-width: 640px) { .feat-grid { grid-template-columns: 1fr; } }
 
 /* ── OWNER SECTION ── */
 .owner-section { background: var(--surface); padding: 96px 32px; border-top: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border); }
@@ -367,59 +375,58 @@ footer { background: var(--text); color: rgba(255,255,255,.7); padding: 64px 32p
 </div>
 
 <!-- FEATURES -->
-<div id="features">
-
-  <div class="feat reveal-l">
-    <div class="feat-visual">
-      <div class="feat-img-box">🔴</div>
+<div class="features-section" id="features">
+  <div class="features-section-head reveal">
+    <div class="feat-tag">機能</div>
+    <h2>飯選びをもっとスマートに</h2>
+    <p>混雑・場所・仲間・気分——全部ここで解決。</p>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card reveal d1">
+      <div class="feat-card-icon">🔴</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">リアルタイム混雑</div>
+        <div class="feat-card-desc">5段階の混雑レベルをカード一覧で確認。並ばずに入れる店がすぐわかる。</div>
+      </div>
     </div>
-    <div class="feat-body">
-      <div class="feat-tag">リアルタイム混雑</div>
-      <h2>並ばずに<br>入れる店がわかる</h2>
-      <p>オーナーが随時更新する5段階の混雑情報。「今すぐ行けるか」がカード一覧でひと目でわかる。</p>
+    <div class="feat-card reveal d2">
+      <div class="feat-card-icon">🗺️</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">キャンパスマップ</div>
+        <div class="feat-card-desc">早稲田・戸山・西早稲田の3キャンパスに対応。周辺600mの全店舗を地図で確認。</div>
+      </div>
+    </div>
+    <div class="feat-card reveal d3">
+      <div class="feat-card-icon">👥</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">ランチメイト</div>
+        <div class="feat-card-desc">一緒に食べる人をリアルタイム募集。ぼっち飯とはもうサヨナラ。</div>
+      </div>
+    </div>
+    <div class="feat-card reveal d1">
+      <div class="feat-card-icon">🔍</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">シーン別フィルター</div>
+        <div class="feat-card-desc">人数・ジャンル・雰囲気・予算で絞り込み。今の気分にぴったりの一軒が見つかる。</div>
+      </div>
+    </div>
+    <div class="feat-card reveal d2">
+      <div class="feat-card-icon">💼</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">バイト募集</div>
+        <div class="feat-card-desc">近くの飲食店のバイト情報もまとめてチェック。お気に入りの店で働くチャンス。</div>
+      </div>
+    </div>
+    <div class="feat-card reveal d3">
+      <div class="feat-card-icon">📍</div>
+      <div class="feat-card-body">
+        <div class="feat-card-title">GPS自動検出</div>
+        <div class="feat-card-desc">現在地から自動でキャンパスを判定。開いたらすぐ近くの店が並ぶ。</div>
+      </div>
     </div>
   </div>
-
-  <hr class="feat-divider">
-
-  <div class="feat rev reveal-r">
-    <div class="feat-visual">
-      <div class="feat-img-box">🗺️</div>
-    </div>
-    <div class="feat-body">
-      <div class="feat-tag">キャンパスマップ</div>
-      <h2>近くの店を<br>まとめて確認</h2>
-      <p>早稲田・戸山・西早稲田の3キャンパスに対応。半径600mの全店舗をマップとリストで確認できる。</p>
-    </div>
-  </div>
-
-  <hr class="feat-divider">
-
-  <div class="feat reveal-l" id="how">
-    <div class="feat-visual">
-      <div class="feat-img-box">👥</div>
-    </div>
-    <div class="feat-body">
-      <div class="feat-tag">ランチメイト</div>
-      <h2>一緒に食べる<br>人を見つけよう</h2>
-      <p>「誰かと食べたい」をリアルタイムで募集・マッチング。ぼっち飯とはもうサヨナラ。</p>
-    </div>
-  </div>
-
-  <hr class="feat-divider">
-
-  <div class="feat rev reveal-r">
-    <div class="feat-visual">
-      <div class="feat-img-box">🔍</div>
-    </div>
-    <div class="feat-body">
-      <div class="feat-tag">シーン別フィルター</div>
-      <h2>今日の気分で<br>ズバッと絞り込む</h2>
-      <p>人数・ジャンル・雰囲気・予算——あらゆる条件で最適な一軒が見つかる。</p>
-    </div>
-  </div>
-
 </div>
+<div id="how"></div>
 
 <!-- OWNER PRICING -->
 <div class="owner-section" id="owners">
