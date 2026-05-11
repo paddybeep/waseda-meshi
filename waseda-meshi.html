@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>ワセ飯</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#8C1515">
@@ -65,7 +68,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .topbar-logo {
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 700;
   color: #fff;
   letter-spacing: -0.5px;
   white-space: nowrap;
@@ -283,7 +286,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   border: 1px solid var(--border);
 }
 .lv-section-title {
-  font-size: 13px; font-weight: 800; color: var(--text);
+  font-size: 13px; font-weight: 700; color: var(--text);
   margin-bottom: 12px; letter-spacing: -0.2px;
 }
 .lv-my-section { background: var(--brand-light); border-color: rgba(140,21,21,0.18); }
@@ -291,7 +294,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 /* マイコード */
 .lv-code-box { display: flex; align-items: center; gap: 10px; }
 .lv-code-display {
-  flex: 1; font-size: 26px; font-weight: 900; letter-spacing: 4px;
+  flex: 1; font-size: 26px; font-weight: 700; letter-spacing: 4px;
   color: var(--brand); background: var(--bg); border-radius: 12px;
   padding: 12px 16px; text-align: center; border: 2px dashed rgba(140,21,21,0.3);
   font-family: monospace;
@@ -367,8 +370,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 /* ── 自分のステータスカード（sticky） ── */
 .lv-my-card {
-  position: sticky;
-  top: var(--topbar-h); /* トップバー高さ */
+  position: relative;
   z-index: 50;
   background: var(--grad);
   padding: 12px 16px 14px;
@@ -614,7 +616,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 .lv-group-label { font-size: 11px; font-weight: 800; margin: 10px 0 4px; }
 
 /* セクション小見出し */
-.lv-section-label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: 0.3px; }
+.lv-section-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.3px; }
 
 /* ── 営業時間曜日エディタ ── */
 .hours-day-row {
@@ -748,16 +750,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 
-/* アクティブなアコーディオン強調 */
-.accordion.has-selection > .accordion-hd {
-  border-left: 3px solid var(--brand);
-  background: var(--brand-light);
-}
-.accordion.has-selection .ah-title {
-  color: var(--brand);
-  font-weight: 800;
-}
-
 .campus-chip {
   background: var(--surface);
   border: 1.5px solid var(--border);
@@ -865,12 +857,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 /* visual */
 .post-visual {
   width: 100%;
-  aspect-ratio: 4/3;
+  aspect-ratio: 1/1;
   background: linear-gradient(145deg, #F7EEEE, #EDE0E0);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 72px;
+  font-size: 96px;
   position: relative;
   overflow: hidden;
 }
@@ -1430,7 +1422,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 /* ── PULSE ── */
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
-@keyframes searchBtnPop { 0%{opacity:0;transform:translateY(12px)} 100%{opacity:1;transform:translateY(0)} }
 .pulse { display: inline-block; border-radius: 50%; animation: pulse 2s infinite; }
 
 /* ── LIKED HEART ── */
@@ -1652,7 +1643,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   background: transparent; color: var(--muted);
   font-size: 10px; font-weight: 600; padding: 0;
 }
-.owner-nav-item .ni { font-size: 22px; }
+.owner-nav-item .ni { font-size: 18px; }
 .owner-nav-item.active { color: var(--brand); }
 
 /* store select sheet */
@@ -1756,6 +1747,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 <div class="view active" id="viewHome">
   <!-- 保存したお店ストーリー列（インスタ風） -->
   <div class="stories-wrap" id="savedStoriesRow" style="display:none"></div>
+  <!-- 今すぐ入れるバナー -->
+  <div id="quickEntryBanner" style="padding:8px 14px 0"></div>
   <!-- ムードフィルター列 -->
   <div class="mood-row-wrap" style="display:flex;align-items:center;gap:8px;padding-right:12px">
     <div class="mood-row" id="moodRow" style="flex:1;overflow-x:auto;scrollbar-width:none"></div>
@@ -1835,7 +1828,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
       <div class="accordion" id="acc3">
         <div class="accordion-hd" onclick="toggleAccordion(3)">
           <span class="ah-icon">🎓</span>
-          <span class="ah-title">キャンパス周辺から探す</span>
+          <span class="ah-title">キャンパスから探す</span>
           <span class="ah-selected" id="acc3sel" style="display:none"></span>
           <span class="ah-arrow">›</span>
         </div>
@@ -1852,9 +1845,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
     </div>
 
-    <!-- 検索ボタン（sticky） -->
-    <div id="searchBtnWrap" style="display:none;position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:200;padding:10px 14px;background:linear-gradient(to top,var(--bg) 80%,transparent);pointer-events:none">
-      <button id="searchExecBtn" onclick="execSearch()" style="pointer-events:auto;width:100%;padding:16px;background:var(--grad);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(140,21,21,0.45);animation:searchBtnPop 0.3s ease">
+    <!-- 検索ボタン -->
+    <div id="searchBtnWrap" style="padding:12px 14px 0;display:none">
+      <button id="searchExecBtn" onclick="execSearch()" style="width:100%;padding:15px;background:var(--grad);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span id="searchExecLabel">この条件で探す</span>
       </button>
@@ -1875,32 +1868,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     <!-- フレンド一覧 -->
     <div class="lv-section" id="lvFriendsSection">
       <div class="lv-friends-header">
-        <span class="lv-section-title" style="margin-bottom:0" id="lvFriendsTitle">👥 フレンド一覧</span>
+        <span class="lv-section-title" style="margin-bottom:0" id="lvFriendsTitle">フレンド一覧</span>
       </div>
       <div id="lvAvatarRow" class="lv-avatar-row"></div>
       <div id="lvFriendsList"></div>
-    </div>
-
-    <!-- マイコード + フレンド追加 -->
-    <div class="lv-section">
-      <!-- QRボタン（目立つ） -->
-      <button onclick="openQRSheet()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:14px 16px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 2px 10px rgba(140,21,21,0.25);margin-bottom:14px">
-        📲 QRコードで友達追加
-      </button>
-
-      <div class="lv-section-label" id="lvMyCodeLabel">🔑 マイコード</div>
-      <div class="lv-code-box" style="margin-top:6px">
-        <div class="lv-code-display" id="lvMyCode">------</div>
-        <button class="lv-copy-btn" id="lvCopyBtn" onclick="copyMyCode()">コピー</button>
-      </div>
-      <div class="lv-hint" id="lvCodeHint" style="font-size:11px;color:var(--muted);margin-top:5px">コードを友達に教えるか、QRを読んでもらおう</div>
-      <div style="height:1px;background:var(--border);margin:14px 0"></div>
-      <div class="lv-section-label" id="lvAddFriendLabel">➕ フレンドを追加</div>
-      <div class="lv-add-row" style="margin-top:6px">
-        <input id="lvFriendCodeInput" class="lv-code-input" placeholder="友達のコードを入力 (例: AB3X7K)" maxlength="8">
-        <button class="lv-add-btn" id="lvAddBtn" onclick="addFriend()">追加</button>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 相手も先にアプリを開いておく必要があります</div>
     </div>
 
     <!-- スタンプカード -->
@@ -1973,6 +1944,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   <div class="sheet" id="listingSheet"></div>
 </div>
 
+<!-- 広告問い合わせシート -->
+<div class="sheet-overlay" id="adInquiryOverlay" onclick="onBgClick(event,'adInquiryOverlay')">
+  <div class="sheet" id="adInquirySheet" style="max-height:90vh;overflow-y:auto"></div>
+</div>
+
 </div><!-- /userUI -->
 
 <!-- ── オーナーUI ── -->
@@ -1994,6 +1970,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   <div class="view" id="ownerViewMenu">
     <div class="owner-body" id="ownerMenuBody"></div>
   </div>
+  <div class="view" id="ownerViewStats">
+    <div class="owner-body" id="ownerStatsBody"></div>
+  </div>
 
   <!-- オーナーナビ -->
   <div class="owner-nav">
@@ -2008,6 +1987,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     </button>
     <button class="owner-nav-item" id="onav3" onclick="switchOwnerTab(3)">
       <span class="ni">🍽️</span>メニュー
+    </button>
+    <button class="owner-nav-item" id="onav4" onclick="switchOwnerTab(4)">
+      <span class="ni">📊</span>統計
     </button>
   </div>
 
@@ -2036,11 +2018,13 @@ const googleProvider = new firebase.auth.GoogleAuthProvider();
 let currentGoogleUser = null;
 
 async function signInWithGoogle() {
+  // file://プロトコルではFirebase Authが動作しない
   if(location.protocol === 'file:') {
     showToast('Google連携はVercel版でお使いください: exports-seven.vercel.app');
     return;
   }
   try {
+    // PC・スマホ共通でリダイレクト方式（ポップアップブロック回避）
     localStorage.setItem('waseMeshiGoogleRedirect', '1');
     await auth.signInWithRedirect(googleProvider);
   } catch(e) {
@@ -2049,17 +2033,21 @@ async function signInWithGoogle() {
   }
 }
 
+// bfcache（バックフォワードキャッシュ）対策
+// Googleリダイレクト中はFirebaseの結果を消さないよう、リダイレクト中はスキップ
 window.addEventListener('pageshow', (event) => {
   if (event.persisted && !localStorage.getItem('waseMeshiGoogleRedirect')) {
     window.location.reload();
   }
 });
 
+// リダイレクト後の結果を処理（ページロード時）
 auth.getRedirectResult().then(result => {
   if (result && result.user) {
     localStorage.removeItem('waseMeshiGoogleRedirect');
     handleGoogleSignIn(result.user);
   } else if(localStorage.getItem('waseMeshiGoogleRedirect')) {
+    // リダイレクトフラグがあるのに結果がない = 認証失敗
     localStorage.removeItem('waseMeshiGoogleRedirect');
     showToast('Google認証を完了できませんでした。再度お試しください。');
   }
@@ -2077,9 +2065,11 @@ async function signOutGoogle() {
   await auth.signOut();
   currentGoogleUser = null;
   showToast('ログアウトしました');
+  // メイトカードを更新
   if(document.getElementById('viewLunch')?.classList.contains('active')) {
     _renderMyCard();
   }
+  // 設定シートが開いていれば更新
   if(document.getElementById('settingsOverlay')?.classList.contains('open')) openSettings();
 }
 
@@ -2090,6 +2080,7 @@ async function handleGoogleSignIn(user) {
     const authRef = db.collection('users_auth').doc(user.uid);
     const authDoc = await authRef.get();
     if (authDoc.exists) {
+      // 既存ユーザー → 紐付けられたコードを復元
       const data = authDoc.data();
       const savedCode = data.waseMeshiCode;
       const savedName = data.displayName;
@@ -2103,6 +2094,7 @@ async function handleGoogleSignIn(user) {
         localStorage.setItem('waseMeshiName', myLunchName);
       }
       if (savedFriends && savedFriends.length > 0) {
+        // マージ（重複排除）
         const merged = [...friendsList];
         savedFriends.forEach(f => {
           if (!merged.some(x => x.code === f.code)) merged.push(f);
@@ -2111,6 +2103,7 @@ async function handleGoogleSignIn(user) {
         saveFriends();
       }
     } else {
+      // 新規 → 現在のコードをGoogleアカウントに紐付け
       if (!myLunchName && user.displayName) {
         myLunchName = user.displayName.split(' ')[0];
         localStorage.setItem('waseMeshiName', myLunchName);
@@ -2125,7 +2118,9 @@ async function handleGoogleSignIn(user) {
       });
     }
     showToast((user.displayName || 'アカウント') + 'でログインしました');
+    // Googleリダイレクト後はメイトタブへ戻す
     switchTab('lunch');
+    // 設定シートが開いていれば更新
     if(document.getElementById('settingsOverlay')?.classList.contains('open')) openSettings();
   } catch(e) {
     console.error('Google auth error:', e);
@@ -2133,6 +2128,7 @@ async function handleGoogleSignIn(user) {
   }
 }
 
+// フレンドリスト保存時にFirestoreにも同期
 function saveAndSyncFriends() {
   saveFriends();
   if (currentGoogleUser) {
@@ -2142,17 +2138,20 @@ function saveAndSyncFriends() {
   }
 }
 
+// 認証状態の変化を監視
 let _authHandled = false;
 auth.onAuthStateChanged(user => {
   if (user) {
     currentGoogleUser = user;
     if (!_authHandled) {
       _authHandled = true;
+      // 画面が完全に初期化された後に復元処理（最初の1回のみ）
       setTimeout(() => handleGoogleSignIn(user), 500);
     }
   } else {
     currentGoogleUser = null;
     _authHandled = false;
+    // サインアウト時にメイトカードを更新
     if(document.getElementById('viewLunch')?.classList.contains('active')) {
       _renderMyCard();
     }
@@ -2201,7 +2200,7 @@ function startFirestoreListeners(){
         if(data.likedBy      !== undefined) ownerData[s.id].likedBy      = data.likedBy;
         // フィードを再描画（ホームが表示中のとき）
         if(document.getElementById('viewHome')?.classList.contains('active')) renderFeed();
-        if(document.getElementById('viewSearch')?.classList.contains('active')) _renderInlineResults();
+        if(document.getElementById('viewSearch')?.classList.contains('active')) showSearchResults(false);
       }
     }, err => console.warn('Firestore listen error:', err));
   });
@@ -2211,6 +2210,13 @@ function startFirestoreListeners(){
 function writeCongestionToFirestore(storeId, value){
   storeRef(storeId).set({ congestion: value }, { merge: true })
     .catch(e => console.warn('write cong error:', e));
+  // 時間別混雑データを統計に保存
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+  const hourKey = `cong_${todayKey}_${now.getHours()}`;
+  db.collection('stats').doc(String(storeId)).set({
+    [hourKey]: value
+  }, { merge: true }).catch(() => {});
 }
 
 // オーナーデータを Firestore に書き込む（部分更新）
@@ -2230,7 +2236,7 @@ const STORES = [
     appeals:["一人飯OK","サクッと食べたい","コスパ最強","がっつり食べたい"],
     tags:["格安","ボリューム大","学生定番"],
     menu:[{cat:"定食（ご飯・味噌汁付）",items:[{n:"日替わり定食",p:"¥500",note:"毎日内容が変わります"},{n:"ラーメン定食",p:"¥550",note:"ラーメン+ご飯"},{n:"炒め定食",p:"¥520",note:"日替わり炒め"}]},{cat:"ラーメン単品",items:[{n:"ラーメン",p:"¥300",note:"早稲田名物の安さ"},{n:"チャーシューラーメン",p:"¥400",note:""}]}],
-    plan:'松'
+    plan:'プレミアム'
   },
   {
     id:2, name:"歌志軒", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2241,7 +2247,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","追い飯あり"],
     tags:["まぜそば","名古屋発","追い飯"],
     menu:[{cat:"まぜそば",items:[{n:"台湾まぜそば",p:"¥850",note:"看板メニュー"},{n:"台湾まぜそば(大)",p:"¥850",note:"大盛り無料！"},{n:"辛台湾まぜそば",p:"¥900",note:"ピリ辛"}]},{cat:"追い飯",items:[{n:"追い飯",p:"¥0",note:"残ったタレにご飯を入れる！必須"}]}],
-    plan:'松'
+    plan:'プレミアム'
   },
   {
     id:3, name:"武蔵野アブラ学会 油そば", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2252,7 +2258,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","コスパ最強"],
     tags:["油そば","まぜそば","大盛あり"],
     menu:[],
-    plan:'松'
+    plan:'プレミアム'
   },
   {
     id:4, name:"武道家", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2263,7 +2269,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","こってり系"],
     tags:["家系","豚骨醤油","ライス無料"],
     menu:[{cat:"ラーメン",items:[{n:"ラーメン",p:"¥780",note:"家系・濃厚豚骨醤油"},{n:"チャーシュー麺",p:"¥980",note:"チャーシュー増量"},{n:"大盛りラーメン",p:"¥830",note:""}]},{cat:"サイド",items:[{n:"ライス",p:"¥0",note:"無料サービス"},{n:"替え玉",p:"¥100",note:""}]}],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:5, name:"らぁ麺やまぐち", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2274,7 +2280,7 @@ const STORES = [
     appeals:["一人飯OK","本格派","こだわりスープ"],
     tags:["食べログ高評価","鶏白湯","清湯"],
     menu:[{cat:"ラーメン",items:[{n:"特製醤油らぁ麺",p:"¥1,100",note:"看板メニュー・食べログ4.0超"},{n:"醤油らぁ麺",p:"¥900",note:""},{n:"鶏白湯らぁ麺",p:"¥950",note:"濃厚クリーミー"}]},{cat:"追加",items:[{n:"味玉",p:"¥100",note:""},{n:"チャーシュー(2枚)",p:"¥200",note:""}]}],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:6, name:"日高屋", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2285,7 +2291,7 @@ const STORES = [
     appeals:["一人飯OK","格安","サクッと食べたい","深夜もOK","コスパ最強"],
     tags:["格安","深夜営業","ラーメン"],
     menu:[{cat:"ラーメン",items:[{n:"中華そば",p:"¥390",note:"コスパ最強"},{n:"ネギラーメン",p:"¥490",note:""},{n:"野菜たっぷりタンメン",p:"¥490",note:"ヘルシー"}]},{cat:"定食・餃子",items:[{n:"餃子(6個)",p:"¥220",note:"絶対頼んで"},{n:"チャーハン",p:"¥390",note:""},{n:"焼きそば",p:"¥390",note:""}]}],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:7, name:"阿波徳島中華そば うだつ食堂", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2296,7 +2302,7 @@ const STORES = [
     appeals:["一人飯OK","ご当地グルメ","こってり系"],
     tags:["徳島ラーメン","肉そぼろ","生卵"],
     menu:[],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:8, name:"九州豚骨ラーメン", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2307,7 +2313,7 @@ const STORES = [
     appeals:["一人飯OK","こってり系","替え玉あり"],
     tags:["豚骨","博多系","替え玉"],
     menu:[],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:9, name:"にこにこ", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2318,7 +2324,7 @@ const STORES = [
     appeals:["一人飯OK","サクッと食べたい"],
     tags:["ラーメン","地元密着"],
     menu:[],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:10, name:"花月", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2329,7 +2335,7 @@ const STORES = [
     appeals:["一人飯OK","こってり系","サクッと食べたい"],
     tags:["チェーン","こってり","ラーメン"],
     menu:[],
-    plan:'竹'
+    plan:'スタンダード'
   },
   {
     id:11, name:"心バ", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2340,7 +2346,7 @@ const STORES = [
     appeals:["一人飯OK","こだわり系"],
     tags:["ラーメン","個性派"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:12, name:"麺爺", genre:"ラーメン", emoji:"🍜", paid:false, isNew:false,
@@ -2351,7 +2357,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい"],
     tags:["ラーメン","ボリューム"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:13, name:"王将", genre:"中華", emoji:"🥟", paid:false, isNew:false,
@@ -2362,7 +2368,7 @@ const STORES = [
     appeals:["一人飯OK","格安","コスパ最強","サクッと食べたい","大人数OK"],
     tags:["格安","餃子","中華"],
     menu:[{cat:"餃子・メイン",items:[{n:"餃子(6個)",p:"¥276",note:"王道・パリパリ"},{n:"天津炒飯",p:"¥506",note:"人気No.1"},{n:"唐揚げ(3個)",p:"¥242",note:""},{n:"麻婆豆腐",p:"¥418",note:"辛さ選べる"}]},{cat:"ラーメン・定食",items:[{n:"醤油ラーメン",p:"¥396",note:""},{n:"餃子定食",p:"¥682",note:"餃子+ラーメン+ご飯"}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:14, name:"福台風味城", genre:"中華", emoji:"🥟", paid:false, isNew:false,
@@ -2373,7 +2379,7 @@ const STORES = [
     appeals:["一人飯OK","本格中華","シェア飯"],
     tags:["台湾料理","中華","本格"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:15, name:"香港華記米", genre:"中華", emoji:"🥟", paid:false, isNew:false,
@@ -2384,7 +2390,7 @@ const STORES = [
     appeals:["一人飯OK","本格中華"],
     tags:["香港料理","中華"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:16, name:"サイゼリヤ", genre:"ピザ・洋食", emoji:"🍕", paid:false, isNew:false,
@@ -2395,7 +2401,7 @@ const STORES = [
     appeals:["大人数OK","格安","コスパ最強","一人飯OK","シェア飯","長居OK"],
     tags:["イタリアン","格安","ファミレス"],
     menu:[{cat:"人気メニュー",items:[{n:"ミラノ風ドリア",p:"¥299",note:"神コスパ！"},{n:"ペペロンチーノ",p:"¥299",note:""},{n:"マルゲリータピザ",p:"¥399",note:"薄生地"},{n:"辛味チキン",p:"¥299",note:"スパイシー"}]},{cat:"ドリンク・デザート",items:[{n:"ドリンクバー",p:"¥180",note:"飲み放題"},{n:"ラージサイズ赤ワイン",p:"¥180",note:"コスパ最強"}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:17, name:"NE'Co", genre:"ピザ・洋食", emoji:"🍕", paid:false, isNew:false,
@@ -2406,7 +2412,7 @@ const STORES = [
     appeals:["デート向け","落ち着ける","一人飯OK"],
     tags:["イタリアン","ピザ","パスタ"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:18, name:"東京らっきょブラザーズ", genre:"カレー", emoji:"🍛", paid:false, isNew:false,
@@ -2417,7 +2423,7 @@ const STORES = [
     appeals:["一人飯OK","スパイス系","こだわり系"],
     tags:["スパイスカレー","個性派"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:19, name:"kitchen Old Bazar", genre:"カレー", emoji:"🍛", paid:false, isNew:false,
@@ -2428,7 +2434,7 @@ const STORES = [
     appeals:["一人飯OK","本格カレー","スパイス系"],
     tags:["スパイスカレー","南アジア","本格"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:20, name:"ナマステヒマル", genre:"カレー", emoji:"🍛", paid:false, isNew:false,
@@ -2439,7 +2445,7 @@ const STORES = [
     appeals:["一人飯OK","本格カレー","ランチお得","大盛あり"],
     tags:["インドカレー","ネパール","ナン"],
     menu:[{cat:"カレー",items:[{n:"チキンカレー",p:"¥800",note:"定番"},{n:"バターチキンカレー",p:"¥850",note:"まろやか"},{n:"野菜カレー",p:"¥750",note:"ヘルシー"}]},{cat:"ランチセット",items:[{n:"ランチセット",p:"¥900",note:"カレー+ナン+ラッシー"},{n:"ナン(1枚)",p:"¥200",note:"大きい！"}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:21, name:"KHANA", genre:"カレー", emoji:"🍛", paid:false, isNew:false,
@@ -2450,7 +2456,7 @@ const STORES = [
     appeals:["一人飯OK","本格カレー"],
     tags:["インドカレー","スパイス"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:22, name:"モスバーガー", genre:"ハンバーガー", emoji:"🍔", paid:false, isNew:false,
@@ -2461,7 +2467,7 @@ const STORES = [
     appeals:["一人飯OK","モーニング","テイクアウトOK","サクッと食べたい"],
     tags:["ハンバーガー","朝食OK","国産食材"],
     menu:[{cat:"バーガー",items:[{n:"モスバーガー",p:"¥370",note:"看板・トマトソース"},{n:"テリヤキバーガー",p:"¥370",note:"甘辛テリヤキ"},{n:"モスチーズバーガー",p:"¥420",note:""}]},{cat:"セット・サイド",items:[{n:"セット",p:"+¥310",note:"ポテト+ドリンク"},{n:"オニオンリング",p:"¥230",note:""}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:23, name:"マクドナルド", genre:"ハンバーガー", emoji:"🍔", paid:false, isNew:false,
@@ -2472,7 +2478,7 @@ const STORES = [
     appeals:["24時間OK","Wi-Fi完備","一人飯OK","テイクアウトOK","深夜もOK","長居OK"],
     tags:["ハンバーガー","24時間","Wi-Fi"],
     menu:[{cat:"バーガー",items:[{n:"ビッグマック",p:"¥480",note:"定番"},{n:"てりやきマックバーガー",p:"¥420",note:"日本限定"},{n:"チキンクリスプ",p:"¥200",note:"コスパ◎"}]},{cat:"セット・サイド",items:[{n:"バリューセット",p:"+¥240",note:"ポテトM+ドリンクM"},{n:"マックフライポテト(M)",p:"¥330",note:""},{n:"100円マック",p:"¥100〜",note:"コーヒー・アップルパイ等"}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:24, name:"サブウェイ", genre:"ハンバーガー", emoji:"🥖", paid:false, isNew:false,
@@ -2483,7 +2489,7 @@ const STORES = [
     appeals:["一人飯OK","ヘルシー","テイクアウトOK","サクッと食べたい"],
     tags:["サンドイッチ","ヘルシー","野菜"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:25, name:"松屋", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2494,7 +2500,7 @@ const STORES = [
     appeals:["24時間OK","格安","一人飯OK","サクッと食べたい","深夜もOK"],
     tags:["牛めし","格安","24時間"],
     menu:[{cat:"牛めし",items:[{n:"牛めし(並)",p:"¥400",note:"コスパ最強"},{n:"牛めし(大)",p:"¥490",note:""},{n:"牛めし定食",p:"¥590",note:"みそ汁・サラダ付"}]},{cat:"定食・カレー",items:[{n:"カルビ焼肉定食",p:"¥790",note:""},{n:"ビーフカレー",p:"¥490",note:""},{n:"朝定食",p:"¥390",note:"5:00〜11:00"}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:26, name:"すき家", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2505,7 +2511,7 @@ const STORES = [
     appeals:["24時間OK","格安","一人飯OK","サクッと食べたい","深夜もOK"],
     tags:["牛丼","格安","24時間"],
     menu:[{cat:"牛丼",items:[{n:"牛丼(並)",p:"¥400",note:""},{n:"牛丼(大)",p:"¥490",note:""},{n:"チーズ牛丼",p:"¥490",note:"人気"},{n:"キムチ牛丼",p:"¥490",note:"ピリ辛"}]},{cat:"定食・その他",items:[{n:"朝定食",p:"¥390",note:"5:00〜11:00"},{n:"カレー",p:"¥490",note:""}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:27, name:"てんや", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2516,7 +2522,7 @@ const STORES = [
     appeals:["一人飯OK","格安","コスパ最強","サクッと食べたい"],
     tags:["天丼","天ぷら","格安"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:28, name:"ほっともっと", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2527,7 +2533,7 @@ const STORES = [
     appeals:["テイクアウトOK","格安","サクッと食べたい"],
     tags:["テイクアウト","弁当","格安"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:29, name:"キッチンオトボケ", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2538,7 +2544,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","手作り"],
     tags:["定食","老舗","ボリューム"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:30, name:"キッチン ミキ", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2549,7 +2555,7 @@ const STORES = [
     appeals:["一人飯OK","野菜しっかり食べたい","手作り"],
     tags:["定食","日替わり","アットホーム"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:31, name:"早苗", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2560,7 +2566,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","コスパ最強"],
     tags:["定食","人気","ランチ"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:32, name:"こだわり屋", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2571,7 +2577,7 @@ const STORES = [
     appeals:["一人飯OK","野菜しっかり食べたい","ヘルシー"],
     tags:["定食","こだわり食材","ヘルシー"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:33, name:"ごんべえ", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2582,7 +2588,7 @@ const STORES = [
     appeals:["一人飯OK","格安","サクッと食べたい"],
     tags:["定食","格安","学生向け"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:34, name:"勝芳", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2593,7 +2599,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい"],
     tags:["定食","揚げ物","ボリューム"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:35, name:"一乃瀬", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2604,7 +2610,7 @@ const STORES = [
     appeals:["一人飯OK","手作り"],
     tags:["定食","地元","手作り"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:36, name:"丼丸", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2615,7 +2621,7 @@ const STORES = [
     appeals:["テイクアウトOK","格安","コスパ最強","サクッと食べたい"],
     tags:["海鮮丼","テイクアウト","格安"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:37, name:"萬ち亭", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2626,7 +2632,7 @@ const STORES = [
     appeals:["一人飯OK","がっつり食べたい","コスパ最強"],
     tags:["定食","中華","老舗"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:38, name:"宝美楼", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2637,7 +2643,7 @@ const STORES = [
     appeals:["一人飯OK","コスパ最強"],
     tags:["定食","中華"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:39, name:"魚かん", genre:"定食", emoji:"🐟", paid:false, isNew:false,
@@ -2648,7 +2654,7 @@ const STORES = [
     appeals:["一人飯OK","野菜しっかり食べたい","ヘルシー"],
     tags:["魚料理","定食","ヘルシー"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:40, name:"焼肉　ホドリ", genre:"焼肉", emoji:"🥩", paid:false, isNew:false,
@@ -2659,7 +2665,7 @@ const STORES = [
     appeals:["大人数OK","シェア飯","がっつり食べたい","デート向け"],
     tags:["焼肉","コスパ","グループ向け"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:41, name:"安兵衛 鮨", genre:"寿司", emoji:"🍣", paid:false, isNew:false,
@@ -2670,7 +2676,7 @@ const STORES = [
     appeals:["ランチがお得","デート向け","贅沢したい"],
     tags:["寿司","ランチ","魚介"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:42, name:"Yahatazushi", genre:"寿司", emoji:"🍣", paid:false, isNew:false,
@@ -2681,7 +2687,7 @@ const STORES = [
     appeals:["ランチがお得","デート向け","贅沢したい","一人飯OK"],
     tags:["寿司","ランチ"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:43, name:"ドトールコーヒーショップ", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2692,7 +2698,7 @@ const STORES = [
     appeals:["一人飯OK","長居OK","モーニング","サクッと食べたい","Wi-Fi完備"],
     tags:["カフェ","格安コーヒー","朝食OK"],
     menu:[{cat:"コーヒー",items:[{n:"ブレンドコーヒー(S)",p:"¥220",note:"コスパ◎"},{n:"カフェラテ(S)",p:"¥270",note:""},{n:"アイスコーヒー(S)",p:"¥220",note:""}]},{cat:"モーニング・フード",items:[{n:"Bセット(トースト+ゆで卵+コーヒー)",p:"¥390",note:"7:30〜11:00"},{n:"ジャーマンドッグ",p:"¥220",note:""}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:44, name:"珈琲館", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2703,7 +2709,7 @@ const STORES = [
     appeals:["一人飯OK","長居OK","落ち着ける","勉強向け"],
     tags:["喫茶店","落ち着ける","レトロ"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:45, name:"アカアマコーヒー", genre:"カフェ", emoji:"☕", paid:false, isNew:true,
@@ -2714,7 +2720,7 @@ const STORES = [
     appeals:["一人飯OK","SNS映え","長居OK","こだわり系"],
     tags:["スペシャルティコーヒー","おしゃれ","SNS映え"],
     menu:[{cat:"コーヒー",items:[{n:"エスプレッソ",p:"¥400",note:"スペシャルティ豆使用"},{n:"カフェラテ",p:"¥550",note:"Hot/Ice"},{n:"フィルターコーヒー",p:"¥500",note:"日替わり豆"}]},{cat:"フード",items:[{n:"スコーン",p:"¥300",note:"自家製"},{n:"本日のケーキ",p:"¥400",note:""}]}],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:46, name:"カフェ　ツバメ", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2725,7 +2731,7 @@ const STORES = [
     appeals:["一人飯OK","SNS映え","落ち着ける"],
     tags:["カフェ","スイーツ","かわいい"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:47, name:"SHIRUCAFE", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2736,7 +2742,7 @@ const STORES = [
     appeals:["一人飯OK","長居OK","Wi-Fi完備","勉強向け"],
     tags:["就活カフェ","学生無料","Wi-Fi"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:48, name:"Good morning café Waseda", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2747,18 +2753,18 @@ const STORES = [
     appeals:["一人飯OK","長居OK","モーニング","Wi-Fi完備"],
     tags:["カフェ","朝食OK","長居"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
-    id:49, name:"Monstera Cafe", genre:"カフェ", emoji:"☕", paid:false, isNew:true,
-    price:"〜700円", hours:"11:00〜21:00", closed:"不定休", addr:"新宿区西早稲田1丁目周辺", map:"Monstera Cafe 早稲田", lat:35.7121633, lng:139.7202785,
-    desc:"植物モチーフのおしゃれカフェ。インスタ映えするドリンクが人気。",
-    pr:"観葉植物に囲まれた癒やし空間で一息☕",
-    seats:20, maxGroup:4,
-    appeals:["一人飯OK","SNS映え","落ち着ける"],
-    tags:["おしゃれカフェ","SNS映え","植物"],
-    menu:[],
-    plan:'梅'
+    id:49, name:"珈琲専科 早稲田", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
+    price:"〜600円", hours:"8:00〜20:00", closed:"日曜定休", addr:"新宿区西早稲田1丁目周辺", map:"珈琲専科 早稲田", lat:35.7068, lng:139.7199,
+    desc:"昔ながらの純喫茶。手頃な価格でコーヒーと軽食が楽しめる。",
+    pr:"勉強はここに限る。モーニングから夕方まで☕",
+    seats:24, maxGroup:4,
+    appeals:["一人飯OK","勉強できる","落ち着ける","コーヒー好き"],
+    tags:["純喫茶","モーニング","勉強"],
+    menu:[{cat:"ドリンク",items:[{n:"ブレンドコーヒー",p:"¥400",note:"自家焙煎"},{n:"カフェラテ",p:"¥450",note:""},{n:"アイスコーヒー",p:"¥400",note:""}]},{cat:"フード",items:[{n:"モーニングセット",p:"¥550",note:"8〜10時"},{n:"トーストサンド",p:"¥450",note:""}]}],
+    plan:'ライト'
   },
   {
     id:50, name:"Le Cafe Retro", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2769,7 +2775,7 @@ const STORES = [
     appeals:["一人飯OK","長居OK","深夜もOK","落ち着ける"],
     tags:["カフェ","レトロ","深夜営業"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:51, name:"シャノアール", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2780,7 +2786,7 @@ const STORES = [
     appeals:["一人飯OK","長居OK","Wi-Fi完備","勉強向け"],
     tags:["喫茶店","Wi-Fi","チェーン"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:52, name:"Cafe GOTO", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2791,7 +2797,7 @@ const STORES = [
     appeals:["一人飯OK","落ち着ける","長居OK"],
     tags:["カフェ","穴場"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:53, name:"New School", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2802,7 +2808,7 @@ const STORES = [
     appeals:["一人飯OK","深夜もOK","落ち着ける","長居OK"],
     tags:["カフェバー","深夜営業","昼夜"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:54, name:"JAZZ NUTTY", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2813,7 +2819,7 @@ const STORES = [
     appeals:["一人飯OK","落ち着ける","長居OK","SNS映え"],
     tags:["ジャズカフェ","おしゃれ","音楽"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:55, name:"茶箱", genre:"カフェ", emoji:"☕", paid:false, isNew:false,
@@ -2824,7 +2830,7 @@ const STORES = [
     appeals:["一人飯OK","落ち着ける","こだわり系"],
     tags:["茶カフェ","日本茶","台湾茶"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:56, name:"kimitier 87", genre:"カフェ", emoji:"☕", paid:false, isNew:true,
@@ -2835,7 +2841,7 @@ const STORES = [
     appeals:["一人飯OK","SNS映え","落ち着ける","こだわり系"],
     tags:["個性派カフェ","夕方","ユニーク"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:57, name:"磨ゐ土", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2846,7 +2852,7 @@ const STORES = [
     appeals:["一人飯OK","手作り"],
     tags:["定食","地元","手作り"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:58, name:"立喰　はせ川", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2857,7 +2863,7 @@ const STORES = [
     appeals:["サクッと食べたい","格安","一人飯OK"],
     tags:["立ち食い","格安","スピード"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:59, name:"紅蓮", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2868,7 +2874,7 @@ const STORES = [
     appeals:["一人飯OK","コスパ最強"],
     tags:["定食"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:60, name:"希家", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2879,7 +2885,7 @@ const STORES = [
     appeals:["一人飯OK","コスパ最強","格安"],
     tags:["定食","格安","学生向け"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:61, name:"高木や", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2890,7 +2896,7 @@ const STORES = [
     appeals:["一人飯OK","アットホーム"],
     tags:["定食","地元","アットホーム"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:62, name:"もりや", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2901,7 +2907,7 @@ const STORES = [
     appeals:["一人飯OK","落ち着ける"],
     tags:["定食","穴場"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:63, name:"さど", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2912,7 +2918,7 @@ const STORES = [
     appeals:["一人飯OK","サクッと食べたい"],
     tags:["定食","シンプル"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:64, name:"VIA", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2923,7 +2929,7 @@ const STORES = [
     appeals:["一人飯OK","こだわり系"],
     tags:["定食","洋食"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:65, name:"CAT'S CRADLE", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2934,7 +2940,7 @@ const STORES = [
     appeals:["一人飯OK","SNS映え","落ち着ける"],
     tags:["カジュアル","猫","個性派"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:66, name:"ビレン", genre:"定食", emoji:"🍱", paid:false, isNew:false,
@@ -2945,7 +2951,7 @@ const STORES = [
     appeals:["一人飯OK","本格アジア料理"],
     tags:["定食","アジア料理"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
   {
     id:67, name:"Monstera Cafe", genre:"カフェ", emoji:"☕", paid:false, isNew:true,
@@ -2956,7 +2962,7 @@ const STORES = [
     appeals:["一人飯OK","SNS映え","落ち着ける"],
     tags:["おしゃれカフェ","SNS映え","植物"],
     menu:[],
-    plan:'梅'
+    plan:'ライト'
   },
 ];
 
@@ -3048,7 +3054,7 @@ const GENRES = ["すべて","ラーメン","油そば","定食","丼","カレー
 // ─── MOOD STORIES ────────────────────────────────────────────
 const MOODS = [
   { id:"all",    emoji:"🌟", label:"おすすめ",      match: s => s.paid || s.isNew },
-  { id:"open",   emoji:"🟢", label:"今すぐ空いてる", match: s => cong[s.id] < 40 },
+  { id:"open",   emoji:"🟢", label:"今すぐ空いてる", match: s => cong[s.id] < 50 },
   { id:"hungry", emoji:"😋", label:"がっつり",       match: s => s.appeals.some(a=>["がっつり食べたい","ボリューム大","替え玉無制限","大盛無料"].includes(a)) },
   { id:"solo",   emoji:"👤", label:"一人飯OK",      match: s => s.appeals.includes("一人飯OK") },
   { id:"group",  emoji:"🎉", label:"大人数OK",      match: s => s.maxGroup >= 8 },
@@ -3122,22 +3128,45 @@ function renderStories(){
   const savedRow = document.getElementById("savedStoriesRow");
   const savedList = STORES.filter(s => saves[s.id]);
   if(savedRow){
-    if(savedList.length > 0 && activeMoods.size === 0){
-      savedRow.style.display = "flex";
-      savedRow.innerHTML =
-        `<div class="story story-saved" style="padding-right:2px">
+    if(activeMoods.size === 0){
+      // 混雑少ない順にハイライト店舗を追加
+      const highlights = STORES
+        .filter(s => s.plan === 'プレミアム' || s.plan === 'スタンダード')
+        .sort((a,b) => cong[a.id] - cong[b.id])
+        .slice(0, 5);
+
+      const highlightItems = highlights.map(s => {
+        const p = cong[s.id];
+        const dot = p < 30 ? '🟢' : p < 70 ? '🟡' : '🔴';
+        return `<div class="story" onclick="openDetail(${s.id})">
+          <div class="story-ring" style="background:${p<30?'linear-gradient(135deg,#2ecc71,#27ae60)':p<70?'linear-gradient(135deg,#f39c12,#e67e22)':'linear-gradient(135deg,#e74c3c,#c0392b)'}">
+            <div class="story-inner">${s.emoji}</div>
+          </div>
+          <span class="story-label">${dot} ${s.name.length>4?s.name.slice(0,4)+'…':s.name}</span>
+        </div>`;
+      }).join('');
+
+      const savedItems = savedList.map(s => `
+        <div class="story" onclick="openDetail(${s.id})">
+          <div class="story-ring" style="background:var(--grad-gold)">
+            <div class="story-inner">${s.emoji}</div>
+          </div>
+          <span class="story-label">${s.name.length>4?s.name.slice(0,4)+'…':s.name}</span>
+        </div>`).join('');
+
+      const header = savedList.length > 0 ? `<div class="story story-saved" style="padding-right:2px">
           <div class="story-ring" style="background:linear-gradient(135deg,#C9A84C,#8C1515)">
             <div class="story-inner" style="font-size:16px;font-weight:800;color:var(--brand)">🔖</div>
           </div>
           <span class="story-label" style="font-weight:700;color:var(--brand)">保存済み</span>
-        </div>` +
-        savedList.map(s => `
-          <div class="story" onclick="openDetail(${s.id})">
-            <div class="story-ring" style="background:var(--grad-gold)">
-              <div class="story-inner">${s.emoji}</div>
-            </div>
-            <span class="story-label">${s.name.length>5?s.name.slice(0,5)+'…':s.name}</span>
-          </div>`).join("");
+        </div>` : '';
+
+      if(highlights.length > 0 || savedList.length > 0) {
+        savedRow.style.display = "flex";
+        savedRow.innerHTML = header + savedItems + (savedList.length && highlights.length ? '<div style="width:1px;background:var(--border);margin:8px 4px;flex-shrink:0"></div>' : '') + highlightItems;
+      } else {
+        savedRow.style.display = "none";
+      }
     } else {
       savedRow.style.display = "none";
     }
@@ -3190,7 +3219,7 @@ function filteredStores(q=""){
 
 // ─── ACCORDION ───────────────────────────────────────────────
 function toggleAccordion(idx){
-  [0,1,2,3].forEach(i=>{
+  [0,1,2].forEach(i=>{
     const el = document.getElementById("acc"+i);
     if(!el) return;
     if(i===idx) el.classList.toggle("open");
@@ -3199,26 +3228,115 @@ function toggleAccordion(idx){
 }
 
 // ─── FEED ────────────────────────────────────────────────────
-const PLAN_ORDER = { '松': 0, '竹': 1, '梅': 2 };
-const AD_CARD = `<div style="margin:8px 14px;border-radius:16px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);border:1.5px solid var(--border);padding:16px;text-align:center;color:var(--muted)">
-  <div style="font-size:10px;margin-bottom:6px">広告</div>
-  <div style="font-size:14px;font-weight:700;color:var(--sub)">🎯 ここに広告が入ります</div>
-  <div style="font-size:12px;margin-top:4px">早大生向けサービス・企業様 掲載お問い合わせ</div>
-</div>`;
+const PLAN_ORDER = { 'プレミアム': 0, 'スタンダード': 1, 'ライト': 2 };
+const AD_CARDS = [
+  `<div style="margin:8px 14px;border-radius:16px;background:linear-gradient(135deg,#FFF9E6,#FFF3CC);border:1.5px solid #F0D060;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openAdInquiry()">
+    <div style="font-size:36px">📚</div>
+    <div style="flex:1">
+      <div style="font-size:9px;color:#a08020;font-weight:700;margin-bottom:2px">PR</div>
+      <div style="font-size:13px;font-weight:800;color:#5a4000">早大生向け家庭教師・個別指導</div>
+      <div style="font-size:11px;color:#8a6000;margin-top:2px">定期テスト対策・受験サポート</div>
+    </div>
+    <div style="font-size:11px;color:#a08020;font-weight:700">詳細 ›</div>
+  </div>`,
+  `<div style="margin:8px 14px;border-radius:16px;background:linear-gradient(135deg,#E8F4FD,#D0EAFF);border:1.5px solid #90CAF9;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openAdInquiry()">
+    <div style="font-size:36px">🏠</div>
+    <div style="flex:1">
+      <div style="font-size:9px;color:#1565C0;font-weight:700;margin-bottom:2px">PR</div>
+      <div style="font-size:13px;font-weight:800;color:#0D3B6E">早稲田周辺の学生マンション</div>
+      <div style="font-size:11px;color:#1565C0;margin-top:2px">礼金0・Wi-Fi無料の物件多数</div>
+    </div>
+    <div style="font-size:11px;color:#1565C0;font-weight:700">詳細 ›</div>
+  </div>`,
+  `<div style="margin:8px 14px;border-radius:16px;background:linear-gradient(135deg,#F0FFF0,#DCFFDC);border:1.5px solid #81C784;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openAdInquiry()">
+    <div style="font-size:36px">💼</div>
+    <div style="flex:1">
+      <div style="font-size:9px;color:#2E7D32;font-weight:700;margin-bottom:2px">PR</div>
+      <div style="font-size:13px;font-weight:800;color:#1B5E20">早大生歓迎！短期バイト募集</div>
+      <div style="font-size:11px;color:#2E7D32;margin-top:2px">時給1,200円〜・シフト自由</div>
+    </div>
+    <div style="font-size:11px;color:#2E7D32;font-weight:700">詳細 ›</div>
+  </div>`
+];
+let _adIdx = 0;
+function getAdCard() { return AD_CARDS[(_adIdx++) % AD_CARDS.length]; }
+const AD_CARD = AD_CARDS[0];
 
 function renderFeed(){
   const list=filteredStores().slice().sort((a,b)=>(PLAN_ORDER[a.plan]||2)-(PLAN_ORDER[b.plan]||2));
   const el=document.getElementById("feed");
   if(!list.length){
     el.innerHTML=`<div class="empty-state"><div class="e">🍽️</div><p>該当なし</p></div>`;
+    renderQuickEntryBanner([]);
     return;
   }
   const parts=[];
   list.forEach((s,i)=>{
     parts.push(postHTML(s));
-    if((i+1)%5===0) parts.push(AD_CARD);
+    // プレミアムプランの店の周辺には広告を表示しない
+    if((i+1)%5===0){
+      const blockStart=Math.max(0,i-4);
+      const hasPremium=list.slice(blockStart,i+2).some(x=>x.plan==='プレミアム');
+      if(!hasPremium) parts.push(getAdCard());
+    }
   });
   el.innerHTML=parts.join("");
+  renderQuickEntryBanner(list);
+}
+
+function renderQuickEntryBanner(list) {
+  const banner = document.getElementById('quickEntryBanner');
+  if(!banner) return;
+  const now = new Date();
+  const h = now.getHours();
+  const isLunchTime = h >= 11 && h < 15;
+  const openNow = list.filter(s => cong[s.id] < 40 && isStoreOpenNow(s));
+  const crowded = list.filter(s => cong[s.id] >= 80);
+
+  let html = '';
+  if(isLunchTime && openNow.length > 0) {
+    html += `<div style="background:linear-gradient(135deg,#E8F8F0,#D4F0E4);border-radius:14px;padding:12px 14px;border:1.5px solid #81C784;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:6px" onclick="filterByLowCong()">
+      <div style="font-size:24px">🟢</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:#1B5E20">今すぐ入れる！${openNow.length}店舗</div>
+        <div style="font-size:11px;color:#2E7D32;margin-top:1px">待ち時間なし・すぐ席あり</div>
+      </div>
+      <div style="font-size:12px;color:#2E7D32;font-weight:700">見る ›</div>
+    </div>`;
+  }
+  if(isLunchTime && crowded.length > 0) {
+    html += `<div style="background:linear-gradient(135deg,#FEF0F0,#FFE0E0);border-radius:14px;padding:10px 14px;border:1.5px solid #F08080;display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <div style="font-size:20px">🔴</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:800;color:#8B0000">${crowded.map(s=>s.name).slice(0,2).join('・')}は現在混雑中</div>
+        <div style="font-size:11px;color:#B22222;margin-top:1px">別の店舗も検討してみては？</div>
+      </div>
+    </div>`;
+  }
+  banner.innerHTML = html;
+}
+
+let _lowCongFilter = false;
+function filterByLowCong() {
+  _lowCongFilter = !_lowCongFilter;
+  const feedEl = document.getElementById('feed');
+  const banner = document.getElementById('quickEntryBanner');
+  if(_lowCongFilter) {
+    const openStores = STORES
+      .filter(s => cong[s.id] < 40 && isStoreOpenNow(s))
+      .sort((a,b)=>cong[a.id]-cong[b.id]);
+    feedEl.innerHTML = `
+      <div style="padding:8px 14px 4px">
+        <button onclick="filterByLowCong()" style="display:flex;align-items:center;gap:6px;background:var(--brand-light);border:1.5px solid var(--brand);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--brand)">
+          ← 全店舗に戻る
+        </button>
+      </div>
+      <div style="padding:4px 14px 4px;font-size:13px;font-weight:700;color:var(--green)">🟢 今すぐ入れる ${openStores.length}店舗</div>
+    ` + openStores.map(s=>postHTML(s)).join('');
+    if(banner) banner.innerHTML = '';
+  } else {
+    renderFeed();
+  }
 }
 
 function postHTML(s){
@@ -3226,43 +3344,35 @@ function postHTML(s){
   const col=cColor(p);
   const lk=likes[s.id];
   const sv=saves[s.id];
-  const status = getStoreStatus(s);
-  const isClosed = status !== 'open';
-  const closedBanner = isClosed ? `
-    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:inherit;gap:6px">
-      <div style="font-size:32px">${status==='closed_day'?'🚫':'🕐'}</div>
-      <div style="color:#fff;font-size:17px;font-weight:900;letter-spacing:0.5px">${status==='closed_day'?'本日定休日':'営業時間外'}</div>
-      <div style="color:rgba(255,255,255,0.8);font-size:12px">${s.hours}　${s.closed}</div>
-    </div>` : '';
   return `
-  <div class="post"${isClosed?' style="opacity:0.75"':''}>
+  <div class="post">
     <div class="post-header" onclick="openDetail(${s.id})" style="cursor:pointer">
       <div style="flex-shrink:0">
         <div class="post-avatar" onclick="event.stopPropagation();openDetail(${s.id})" style="cursor:pointer">${s.emoji}</div>
       </div>
       <div class="post-meta">
         <div class="post-name-row">
-          <span class="post-name">${s.name}</span>${s.plan==='松'?`<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">⭐ おすすめ</span>`:''}
-          ${isClosed?`<span style="background:#666;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">${status==='closed_day'?'定休日':'時間外'}</span>`:''}
+          <span class="post-name">${s.name}</span>${s.plan==='プレミアム'?`<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">おすすめ</span>`:''}
           ${ownerData[s.id]?.todaySpecial ? `<span class="note-inline">💬 ${ownerData[s.id].todaySpecial.length>18?ownerData[s.id].todaySpecial.slice(0,18)+'…':ownerData[s.id].todaySpecial}</span>` : ''}
         </div>
         <div class="post-genre">${s.genre} · ${s.addr.split("区")[0]}区</div>
       </div>
       ${s.paid?'<span class="post-badge-paid">掲載中</span>':s.isNew?'<span class="post-badge-new">NEW</span>':''}
     </div>
-    <div class="post-visual" onclick="openDetail(${s.id})" style="position:relative">
+    <div class="post-visual" onclick="openDetail(${s.id})">
       <div class="post-visual-bg">${s.emoji}</div>
       <span style="position:relative;z-index:1">${s.emoji}</span>
-      ${closedBanner}
-      <div class="cong-overlay"${isClosed?' style="display:none"':''}>
+      <div class="cong-overlay">
         <div class="cong-main-row">
-          <div class="cong-big-num" style="color:${col}">${p}<span style="font-size:24px;font-weight:700">%</span></div>
+          <div style="flex:1">
+            <div style="font-size:22px;font-weight:900;color:${col};line-height:1.1">${cWait(p)}</div>
+            <div style="font-size:12px;font-weight:700;color:${col}99;margin-top:2px">${cEmoji(p)} ${cLabel(p)}</div>
+          </div>
           <div class="cong-right">
             <div class="cong-status-badge" style="background:${col}33;color:${col}">
               <span class="pulse" style="background:${col};width:7px;height:7px"></span>
-              ${cLabel(p)}
+              LIVE
             </div>
-            <span class="cong-live-tag">LIVE 混雑率</span>
           </div>
         </div>
         <div class="cong-bar-wrap">
@@ -3279,6 +3389,7 @@ function postHTML(s){
       <button class="save-btn" onclick="toggleSave(${s.id})" id="save-${s.id}">${sv?'🔖':'🏷️'}</button>
     </div>
     ${(()=>{ const ns=friendLikeNames(s.id); return ns.length>0?`<div style="padding:4px 12px 2px;font-size:12px;color:var(--brand);font-weight:600">❤️ ${ns.join('、')} がいいね</div>`:''; })()}
+    ${(()=>{ const seats=ownerData[s.id]?.seatsStatus; if(!seats||seats==='normal') return ''; const cfg={queue:{bg:'#FFF0F0',color:'#c0392b',icon:'🚶',text:'行列あり・入店待ち'},full:{bg:'#FEE8E8',color:'#c0392b',icon:'🔴',text:'現在満席'},few:{bg:'#FEF6E4',color:'#b7860b',icon:'🟡',text:'残席わずか'},closed:{bg:'#333',color:'#fff',icon:'🚫',text:'本日休業'}}[seats]; return cfg?`<div style="background:${cfg.bg};padding:6px 12px;display:flex;align-items:center;gap:6px"><span>${cfg.icon}</span><span style="font-size:12px;font-weight:700;color:${cfg.color}">${cfg.text}</span></div>`:''; })()}
     <div class="post-caption" onclick="openDetail(${s.id})" style="cursor:pointer">
       <span class="caption-name">${s.name}</span>
       <span class="caption-text">${s.desc}</span>
@@ -3431,8 +3542,8 @@ let activeSearchGenre = null;
 // キャンパス中心座標と半径(km)
 const CAMPUS_CENTERS = {
   waseda: { lat: 35.7089, lng: 139.7195, name: '早稲田キャンパス' },
-  toyama: { lat: 35.7056042, lng: 139.7176332, name: '戸山キャンパス' },
-  nishiw: { lat: 35.70611,   lng: 139.7070,    name: '西早稲田キャンパス' },
+  toyama: { lat: 35.7093, lng: 139.7260, name: '戸山キャンパス' },
+  nishiw: { lat: 35.7072, lng: 139.7143, name: '西早稲田キャンパス' },
 };
 let activeCampus = null;
 
@@ -3450,9 +3561,7 @@ function selectCampus(key) {
       sel.style.display = 'none';
     }
   }
-  document.getElementById("acc3")?.classList.remove("open");
-  updateActiveFiltersBar();
-  _renderInlineResults();
+  showSearchResults(true);
 }
 
 function distKm(lat1, lng1, lat2, lng2) {
@@ -3490,45 +3599,24 @@ function renderSearch(){
   const clearBtn = document.getElementById("searchClear");
   clearBtn.classList.toggle("visible", q.length>0);
   updateActiveFiltersBar();
-  _renderInlineResults();
+  updateSearchBtn();
+  // テキスト検索は即時、フィルターはボタン待ち
+  if(q) showSearchResults(true);
 }
 
 function updateSearchBtn(){
-  // 新デザインではボタン不要（即時表示）
-  const wrap = document.getElementById('searchBtnWrap');
-  if(wrap) wrap.style.display = 'none';
-}
-
-// フィルター変更 → 即座にアコーディオン下に結果表示
-function _renderInlineResults(){
-  const res      = document.getElementById("searchResults");
-  const sections = document.getElementById("searchSections");
-  const btnWrap  = document.getElementById("searchBtnWrap");
-  const q = document.getElementById("searchInput").value.trim();
-  const hasFilter = activeSituation || activePerson || activeSearchGenre || activeCampus || q;
-
-  if(btnWrap) btnWrap.style.display = "none";
-  sections.style.display = "block"; // アコーディオン常時表示
-
-  if(!hasFilter){ res.innerHTML = ""; return; }
-
-  const list = searchFiltered();
-  if(!list.length){
-    res.innerHTML = `
-      <div style="margin:12px 14px 0;background:var(--brand-light);border-radius:14px;padding:16px;text-align:center">
-        <div style="font-size:28px;margin-bottom:6px">🔍</div>
-        <div style="font-size:14px;font-weight:800;color:var(--brand)">条件に合うお店が見つかりません</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">条件を変えてみて</div>
-      </div>`;
+  const wrap  = document.getElementById('searchBtnWrap');
+  const label = document.getElementById('searchExecLabel');
+  const hasFilter = activeSituation || activePerson || activeSearchGenre || activeCampus;
+  const sections = document.getElementById('searchSections');
+  // 検索結果表示中でなければボタンを表示
+  const res = document.getElementById('searchResults');
+  if(hasFilter && sections.style.display !== 'none'){
+    wrap.style.display = 'block';
+    const cnt = searchFiltered().length;
+    label.textContent = lang==='en' ? `Find ${cnt} restaurants` : `${cnt}件のお店を探す`;
   } else {
-    res.innerHTML = `
-      <div style="margin:12px 14px 4px;display:flex;align-items:center;gap:8px">
-        <div style="background:var(--brand);color:#fff;border-radius:20px;padding:6px 14px;font-size:14px;font-weight:800;box-shadow:0 2px 8px rgba(140,21,21,0.3);animation:searchBtnPop 0.25s ease">
-          🍽️ ${list.length}件ヒット
-        </div>
-        <div style="font-size:12px;color:var(--muted)">↓ スクロールして確認</div>
-      </div>
-      ${AD_CARD}${list.map(s=>postHTML(s)).join("")}`;
+    wrap.style.display = 'none';
   }
 }
 
@@ -3560,7 +3648,7 @@ function showSearchResults(forced){
     if(!list.length){
       res.innerHTML=backBtn+`<div class="empty-state"><div class="e">🔍</div><p>条件に合う店舗が見つかりませんでした</p></div>`;
     } else {
-      res.innerHTML = backBtn + AD_CARD + `<div style="padding:8px 14px 4px;font-size:13px;font-weight:700;color:var(--muted)">${list.length}件ヒット</div>`
+      res.innerHTML = backBtn + getAdCard() + `<div style="padding:8px 14px 4px;font-size:13px;font-weight:700;color:var(--muted)">${list.length}件ヒット</div>`
         + list.map(s=>postHTML(s)).join("");
     }
   } else {
@@ -3579,8 +3667,8 @@ function resetSearch(){
   const acc3sel = document.getElementById('acc3sel');
   if(acc3sel) acc3sel.style.display = 'none';
   document.getElementById("searchInput").value="";
+  showSearchResults(false);
   updateActiveFiltersBar();
-  _renderInlineResults();
 }
 
 function updateActiveFiltersBar(){
@@ -3615,12 +3703,6 @@ function updateActiveFiltersBar(){
   if(s0){ const sit=SITUATIONS.find(x=>x.id===activeSituation); s0.textContent=sit?sit.emoji+" "+(lang==='en'?sit.labelEn:sit.label):""; s0.style.display=sit?"inline-block":"none"; }
   if(s1){ const po=PERSON_OPTS.find(x=>x.id===activePerson); s1.textContent=po?po.icon+" "+(lang==='en'?po.labelEn:po.label):""; s1.style.display=po?"inline-block":"none"; }
   if(s2){ s2.textContent=activeSearchGenre?genreEmoji(activeSearchGenre)+" "+(lang==='en'?(GENRE_EN[activeSearchGenre]||activeSearchGenre):activeSearchGenre):""; s2.style.display=activeSearchGenre?"inline-block":"none"; }
-
-  // アクティブなアコーディオンにクラス付与（視覚的強調）
-  document.getElementById("acc0")?.classList.toggle("has-selection", !!activeSituation);
-  document.getElementById("acc1")?.classList.toggle("has-selection", !!activePerson);
-  document.getElementById("acc2")?.classList.toggle("has-selection", !!activeSearchGenre);
-  document.getElementById("acc3")?.classList.toggle("has-selection", !!activeCampus);
 }
 
 function clearSearch(){ document.getElementById("searchInput").value=""; resetSearch(); }
@@ -3630,22 +3712,19 @@ function clearSearchGenre(){ activeSearchGenre=null; updateFilterState(); }
 
 function updateFilterState(){
   updateActiveFiltersBar();
-  _renderInlineResults();
+  updateSearchBtn();
 }
 
 function setSituation(id){
   activeSituation = activeSituation===id ? null : id;
-  document.getElementById("acc0")?.classList.remove("open");
   updateFilterState();
 }
 function setPersonFilter(id){
   activePerson = activePerson===id ? null : id;
-  document.getElementById("acc1")?.classList.remove("open");
   updateFilterState();
 }
 function setSearchGenre(g){
   activeSearchGenre = activeSearchGenre===g ? null : g;
-  document.getElementById("acc2")?.classList.remove("open");
   updateFilterState();
 }
 
@@ -3786,8 +3865,6 @@ function initMap(){
   // ── 早稲田大学キャンパスマーカー ──────────────────────────
   const campuses = [
     { name:'早稲田キャンパス', lat:35.7089, lng:139.7195, color:'#8C1515', note:'文・法・商・政経 など' },
-    { name:'戸山キャンパス',   lat:35.7056042, lng:139.7176332, color:'#1f5f9c', note:'文学部・文化構想学部' },
-    { name:'西早稲田キャンパス', lat:35.70611,   lng:139.7070,    color:'#0f8a6c', note:'理工学部（基幹・創造・先進）' },
   ];
   campuses.forEach(c => {
     const svgHtml = `<div style="background:${c.color};color:#fff;font-size:10px;font-weight:800;padding:4px 7px;border-radius:12px;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🎓 ${c.name}</div>`;
@@ -3795,8 +3872,14 @@ function initMap(){
     L.marker([c.lat, c.lng], { icon, zIndexOffset:1000 })
       .addTo(map)
       .bindPopup(`<b>🎓 ${c.name}</b><br><span style="font-size:12px;color:#666">${c.note}</span>`);
-    // キャンパス中心を示す円
-    L.circle([c.lat, c.lng], { radius:120, color:c.color, fillColor:c.color, fillOpacity:0.12, weight:2, opacity:0.55 }).addTo(map);
+  });
+
+  // ── キャンパス範囲ポリゴン（うっすら） ──────────────────────
+  const campusAreas = [
+    { coords:[[35.7100,139.7175],[35.7100,139.7215],[35.7079,139.7215],[35.7079,139.7175]], color:'#8C1515' }, // 早稲田
+  ];
+  campusAreas.forEach(a => {
+    L.polygon(a.coords, { color:a.color, fillColor:a.color, fillOpacity:0.08, weight:2, opacity:0.5 }).addTo(map);
   });
 
   STORES.forEach(s=>addMapMarker(s));
@@ -3817,11 +3900,14 @@ function locateUser(showToastOnFail = true) {
     (pos) => {
       const latlng = [pos.coords.latitude, pos.coords.longitude];
       const acc = pos.coords.accuracy;
+      // 既存マーカーを削除
       if(_userLocationMarker) map.removeLayer(_userLocationMarker);
       if(_userLocationCircle) map.removeLayer(_userLocationCircle);
+      // 精度円
       _userLocationCircle = L.circle(latlng, {
         radius: acc, color:'#4285F4', fillColor:'#4285F4', fillOpacity:0.1, weight:1
       }).addTo(map);
+      // 現在地マーカー
       const icon = L.divIcon({
         html:`<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
         className:'', iconAnchor:[8,8]
@@ -3919,7 +4005,7 @@ const NAV_IDS={home:"navHome",search:"navSearch",lunch:"navLunch",map:"navMap"};
 
 function switchTab(tab){
   logEvent('tab_view', { tab });
-  localStorage.setItem('waseMeshiTab', tab);
+  localStorage.setItem('waseMeshiTab', tab); // タブ状態を保存
   Object.keys(TABS).forEach(k=>{
     document.getElementById(TABS[k]).classList.toggle("active",k===tab);
     document.getElementById(NAV_IDS[k]).classList.toggle("active",k===tab);
@@ -3935,6 +4021,11 @@ function openDetail(id){
   curDetail=id;
   const s=STORES.find(x=>x.id===id);
   logEvent('store_view', { store_id: id, store_name: s?.name, genre: s?.genre });
+  // 統計：閲覧数カウントアップ
+  const todayKey = `${new Date().getFullYear()}-${new Date().getMonth()+1}-${new Date().getDate()}`;
+  db.collection('stats').doc(String(id)).set({
+    [`views_${todayKey}`]: firebase.firestore.FieldValue.increment(1)
+  }, { merge: true }).catch(()=>{});
   const mapUrl="https://www.google.com/maps/search/"+encodeURIComponent(s.map);
 
   // Firestoreで店側が登録したmenuを優先、なければSTORESのデフォルトmenu
@@ -3962,7 +4053,7 @@ function openDetail(id){
       <button class="sheet-close" onclick="closeSheets()">✕</button>
     </div>
     <div class="sheet-body">
-      <div class="sheet-genre">${s.genre}${s.paid?' · <span style="color:#C9843A;font-weight:700">掲載店</span>':''}</div>
+      <div class="sheet-genre">${s.genre}${s.plan==='プレミアム'?'<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">プレミアム</span>':s.plan==='スタンダード'?'<span style="background:linear-gradient(135deg,#7CB9E8,#4169E1);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">スタンダード</span>':''}</div>
       <div class="sheet-name">${s.name}</div>
 
       <!-- 混雑 -->
@@ -4029,9 +4120,9 @@ function openDetail(id){
 
       <!-- 残席 -->
       ${ownerData[id]?.seatsStatus !== 'normal' ? `
-        <div style="background:${ownerData[id].seatsStatus==='full'?'#FEE8E8':ownerData[id].seatsStatus==='closed'?'#333':'#FEF6E4'};border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">${ownerData[id].seatsStatus==='few'?'🟡':ownerData[id].seatsStatus==='full'?'🔴':'🚫'}</span>
-          <span style="font-size:14px;font-weight:700;color:${ownerData[id].seatsStatus==='closed'?'#fff':'inherit'}">${{few:'残席わずか',full:'現在満席',closed:'本日休業'}[ownerData[id].seatsStatus]}</span>
+        <div style="background:${ownerData[id].seatsStatus==='full'?'#FEE8E8':ownerData[id].seatsStatus==='queue'?'#FFF0F0':ownerData[id].seatsStatus==='closed'?'#333':'#FEF6E4'};border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${ownerData[id].seatsStatus==='few'?'🟡':ownerData[id].seatsStatus==='full'?'🔴':ownerData[id].seatsStatus==='queue'?'🚶':'🚫'}</span>
+          <span style="font-size:14px;font-weight:700;color:${ownerData[id].seatsStatus==='closed'?'#fff':'inherit'}">${{few:'残席わずか',full:'現在満席',queue:'行列あり・入店待ち',closed:'本日休業'}[ownerData[id].seatsStatus]||''}</span>
         </div>
       ` : ''}
 
@@ -4078,15 +4169,23 @@ function refreshCongSection(id){
       </div>
       <div class="cong-big-bar"><div class="cong-big-fill" style="width:${p}%;background:${c}"></div></div>
       <div class="cong-big-row">
-        <div><div class="cong-big-pct" style="color:${c}">${p}%</div><div class="cong-big-status" style="color:${c}">${cLabel(p)}</div></div>
-        <div class="cong-scale">🟢 空き &lt;40%<br>🟡 普通 40〜69%<br>🔴 混雑 70%〜</div>
+        <div>
+          <div style="font-size:28px;font-weight:900;color:${c};line-height:1.1">${cWait(p)}</div>
+          <div style="font-size:13px;font-weight:700;color:${c};margin-top:3px">${cEmoji(p)} ${cLabel(p)}</div>
+          ${currentRole!=='owner'?`<div style="font-size:11px;color:var(--muted);margin-top:4px">※ 店舗オーナーがリアルタイム更新</div>`:''}
+        </div>
+        <div class="cong-scale" style="font-size:10px;color:var(--muted);text-align:right;line-height:2">
+          🟢 今すぐ入れる<br>🟡 ほぼ待ちなし<br>🟠 5〜10分待ち<br>🔴 15〜20分待ち<br>🔴🔴 30分以上待ち
+        </div>
       </div>
       ${currentRole==='owner'?`
       <div style="font-size:11px;color:var(--muted);margin-top:10px;margin-bottom:4px">店主からの手動更新</div>
       <div class="cong-update-btns">
-        <button class="cong-upd-btn" style="border-color:#2ecc71;color:#2ecc71" onclick="setCong(${id},18)">🟢 空いてる</button>
-        <button class="cong-upd-btn" style="border-color:#f39c12;color:#f39c12" onclick="setCong(${id},52)">🟡 普通</button>
-        <button class="cong-upd-btn" style="border-color:#e74c3c;color:#e74c3c" onclick="setCong(${id},83)">🔴 混んでる</button>
+        <button class="cong-upd-btn" style="border-color:#2ecc71;color:#2ecc71" onclick="setCong(${id},10)">🟢 空いてる</button>
+        <button class="cong-upd-btn" style="border-color:#a8c83a;color:#a8c83a" onclick="setCong(${id},35)">🟡 やや空き</button>
+        <button class="cong-upd-btn" style="border-color:#f39c12;color:#f39c12" onclick="setCong(${id},60)">🟠 普通</button>
+        <button class="cong-upd-btn" style="border-color:#e67e22;color:#e67e22" onclick="setCong(${id},80)">🔴 やや混雑</button>
+        <button class="cong-upd-btn" style="border-color:#e74c3c;color:#e74c3c" onclick="setCong(${id},95)">🔴🔴 混雑</button>
       </div>`:'<div style="font-size:11px;color:var(--muted);margin-top:8px">※ 店舗オーナーがリアルタイム更新しています</div>'}
     </div>
   `;
@@ -4099,11 +4198,11 @@ function setCong(id,p){
   refreshCongSection(id);
   renderFeed();
   updateMapMarkers();
-  showToast("✅ 混雑情報を更新しました");
+  showToast("混雑情報を更新しました");
 }
 
 // ─── LISTING SHEET ───────────────────────────────────────────
-let selPlan="竹";
+let selPlan="スタンダード";
 
 function openListing(){
   renderListingSheet();
@@ -4122,23 +4221,23 @@ function renderListingSheet(){
       <div class="ls-title">掲載申込</div>
       <div class="ls-sub">早大生 8,000人以上にアピールできます</div>
       <div class="plan-row">
-        <div class="plan-card${selPlan==='梅'?' active':''}" onclick="selPlan='梅';renderListingSheet()">
-          <div class="plan-name">🌸 梅</div>
+        <div class="plan-card${selPlan==='ライト'?' active':''}" onclick="selPlan='ライト';renderListingSheet()">
+          <div class="plan-name">ライト</div>
           <div class="plan-yen">¥0 <small>/ 月</small></div>
           <ul><li>基本掲載</li><li>混雑率更新</li><li>今日の一言</li><li>写真3枚</li></ul>
         </div>
-        <div class="plan-card${selPlan==='竹'?' active':''}" onclick="selPlan='竹';renderListingSheet()">
+        <div class="plan-card${selPlan==='スタンダード'?' active':''}" onclick="selPlan='スタンダード';renderListingSheet()">
           <div class="popular-badge">おすすめ</div>
-          <div class="plan-name">🎋 竹</div>
+          <div class="plan-name">スタンダード</div>
           <div class="plan-yen">¥480 <small>/ 月</small></div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">正規¥980</div>
-          <ul><li>梅の全機能</li><li>写真10枚</li><li>クーポン</li><li>バイト募集</li><li>QRコード</li><li>スタンプ</li></ul>
+          <ul><li>ライトの全機能</li><li>写真10枚</li><li>クーポン</li><li>バイト募集</li><li>QRコード</li><li>スタンプ</li></ul>
         </div>
-        <div class="plan-card${selPlan==='松'?' active':''}" onclick="selPlan='松';renderListingSheet()">
-          <div class="plan-name">🌲 松</div>
+        <div class="plan-card${selPlan==='プレミアム'?' active':''}" onclick="selPlan='プレミアム';renderListingSheet()">
+          <div class="plan-name">プレミアム</div>
           <div class="plan-yen">¥980 <small>/ 月</small></div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">正規¥2,980</div>
-          <ul><li>竹の全機能</li><li>写真無制限</li><li>最上位表示</li><li>来店レポート</li></ul>
+          <ul><li>スタンダードの全機能</li><li>写真無制限</li><li>最上位表示</li><li>来店レポート</li></ul>
         </div>
       </div>
       <div class="fg"><label>店名 *</label><input type="text" placeholder="例：早稲田食堂"></div>
@@ -4157,7 +4256,8 @@ function submitListing(){ closeSheets(); showToast("📩 申込を受け付け�
 // ─── UTILS ───────────────────────────────────────────────────
 function closeSheets(){
   ["detailOverlay","listingOverlay","moodSettingsOverlay","settingsOverlay",
-   "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay"]
+   "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay",
+   "qrOverlay","adInquiryOverlay"]
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove("open"); });
   document.body.style.overflow="";
   curDetail=null;
@@ -4307,7 +4407,7 @@ function openSettings(){
   sheet.innerHTML = `
     <div class="sheet-handle"></div>
     <div style="padding:16px 18px 8px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:17px;font-weight:900">${t('settingsTitle')}</div>
+      <div style="font-size:17px;font-weight:700">${t('settingsTitle')}</div>
       <button onclick="closeSheets()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">✕</button>
     </div>
 
@@ -4340,7 +4440,7 @@ function openSettings(){
     <div class="settings-section">
       <div class="settings-section-title">${t('settingsLangSection')}</div>
       <div class="settings-row">
-        <span class="sr-icon">🌐</span>
+        <span class="sr-icon"></span>
         <span class="sr-label">${t('settingsLangLabel')}</span>
         <div class="lang-toggle">
           <button class="lang-btn${lang==='ja'?' active':''}" onclick="setLang('ja')">🇯🇵 日本語</button>
@@ -4352,7 +4452,7 @@ function openSettings(){
     <div class="settings-section">
       <div class="settings-section-title">${t('settingsFilterSection')}</div>
       <div class="settings-row" style="cursor:pointer" onclick="closeSheets();setTimeout(openMoodSettings,200)">
-        <span class="sr-icon">⚙️</span>
+        <span class="sr-icon"></span>
         <span class="sr-label">${t('settingsMoodLabel')}</span>
         <span class="sr-arrow">›</span>
       </div>
@@ -4361,7 +4461,7 @@ function openSettings(){
     <div class="settings-section">
       <div class="settings-section-title">${t('settingsListingSection')}</div>
       <div class="settings-row" style="cursor:pointer" onclick="closeSheets();setTimeout(openListing,200)">
-        <span class="sr-icon">🏪</span>
+        <span class="sr-icon"></span>
         <span class="sr-label">${t('settingsListingLabel')}<br><span style="font-size:11px;color:var(--muted);font-weight:400">${t('settingsListingDesc')}</span></span>
         <span class="sr-arrow">›</span>
       </div>
@@ -4383,6 +4483,24 @@ function openSettings(){
       </div>
     </div>
 
+    <div class="settings-section">
+      <div class="settings-section-title">広告・店舗掲載</div>
+      <div class="settings-row" style="cursor:pointer" onclick="closeSheets();setTimeout(openAdInquiry,200)">
+        <span class="sr-icon"></span>
+        <span class="sr-label">広告掲載のお問い合わせ<br><span style="font-size:11px;color:var(--muted);font-weight:400">早大生へのリーチ・プランのご案内</span></span>
+        <span class="sr-arrow">›</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">ロール</div>
+      <div class="settings-row" style="cursor:pointer" onclick="resetRoleAndReload()">
+        <span class="sr-icon">↩</span>
+        <span class="sr-label">最初の画面に戻る<br><span style="font-size:11px;color:var(--muted);font-weight:400">ユーザー / オーナーの選択をやり直す</span></span>
+        <span class="sr-arrow">›</span>
+      </div>
+    </div>
+
     <div style="padding:24px 18px;text-align:center;color:var(--muted);font-size:12px">
       ${t('settingsVersion')}
     </div>
@@ -4391,14 +4509,190 @@ function openSettings(){
   document.body.style.overflow = 'hidden';
 }
 
+function resetRoleAndReload(){
+  localStorage.removeItem('waseMeshiRole');
+  localStorage.removeItem('waseMeshiTab');
+  location.reload();
+}
+
 function submitFeedback(){
   const txt = document.getElementById('feedbackText');
   if(!txt) return;
   const msg = txt.value.trim();
   if(!msg){ showToast(lang==='en'?'⚠ Please write something':'⚠ 内容を入力してください'); return; }
+  db.collection('feedback').add({
+    message: msg,
+    userCode: myCode || '匿名',
+    userName: currentGoogleUser?.displayName || null,
+    userEmail: currentGoogleUser?.email || null,
+    ts: firebase.firestore.FieldValue.serverTimestamp(),
+    lang
+  }).catch(() => {});
   txt.value = '';
   closeSheets();
   showToast(lang==='en'?'💌 Thanks for your feedback!':'💌 フィードバックありがとうございます！');
+}
+
+// ─── 広告問い合わせページ ──────────────────────────────────────
+function openAdInquiry() {
+  const sheet = document.getElementById('adInquirySheet');
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div style="padding:20px 18px 40px">
+
+      <!-- ヘッダー -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:40px;margin-bottom:8px">📢</div>
+        <div style="font-size:22px;font-weight:900;color:var(--text)">広告掲載のご案内</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">早稲田大学周辺の学生にリーチ</div>
+      </div>
+
+      <!-- 数字アピール -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+        <div style="background:var(--brand-light);border-radius:14px;padding:14px;text-align:center">
+          <div style="font-size:22px;font-weight:900;color:var(--brand)">500+</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">月間ユーザー数</div>
+        </div>
+        <div style="background:#E8F4FD;border-radius:14px;padding:14px;text-align:center">
+          <div style="font-size:22px;font-weight:900;color:#1565C0">67</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">掲載店舗数</div>
+        </div>
+        <div style="background:#E8F8F0;border-radius:14px;padding:14px;text-align:center">
+          <div style="font-size:22px;font-weight:900;color:#1B5E20">昼</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">メインの利用時間帯</div>
+        </div>
+      </div>
+
+      <!-- プランカード -->
+      <div style="font-size:14px;font-weight:800;margin-bottom:12px">💎 企業向け広告プラン</div>
+
+      <!-- スタートプラン -->
+      <div style="border:1.5px solid #F0D060;border-radius:16px;overflow:hidden;margin-bottom:10px">
+        <div style="background:linear-gradient(135deg,#FFF9E6,#FFF3CC);padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:900">スタートプラン</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">フィード内バナー広告</div>
+            </div>
+            <div style="font-size:18px;font-weight:900;color:var(--brand)">¥5,000<span style="font-size:11px;font-weight:400">/月</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--sub);line-height:1.8">
+            ✅ ホームフィードに5件おきで表示<br>
+            ✅ 検索結果ページに表示<br>
+            ✅ 企業名・キャッチコピー・リンク掲載<br>
+            ✅ 月1回デザイン変更可
+          </div>
+        </div>
+      </div>
+
+      <!-- スタンダードプラン -->
+      <div style="border:1.5px solid #90CAF9;border-radius:16px;overflow:hidden;margin-bottom:10px">
+        <div style="background:linear-gradient(135deg,#E8F4FD,#D0EAFF);padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:900">スタンダードプラン</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">バナー広告＋優先表示</div>
+            </div>
+            <div style="font-size:18px;font-weight:900;color:var(--brand)">¥15,000<span style="font-size:11px;font-weight:400">/月</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--sub);line-height:1.8">
+            ✅ スタートプランの全機能<br>
+            ✅ フィード上部への優先表示<br>
+            ✅ 店舗詳細ページへの広告掲載<br>
+            ✅ 月2回デザイン変更可<br>
+            ✅ クリック数・表示数レポート
+          </div>
+        </div>
+      </div>
+
+      <!-- プレミアムプラン -->
+      <div style="border:1.5px solid #FFD700;border-radius:16px;overflow:hidden;margin-bottom:12px">
+        <div style="background:linear-gradient(135deg,#FFFBF0,#FFF3D0);padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:900">プレミアムプラン</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">全面的なブランディング支援</div>
+            </div>
+            <div style="font-size:18px;font-weight:900;color:var(--brand)">¥50,000<span style="font-size:11px;font-weight:400">/月</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--sub);line-height:1.8">
+            ✅ スタンダードプランの全機能<br>
+            ✅ トップページ固定バナー掲載<br>
+            ✅ イベント・キャンペーン特集ページ作成<br>
+            ✅ プッシュ通知での告知（月1回）<br>
+            ✅ 詳細アクセス解析レポート（週次）<br>
+            ✅ 専任担当者によるサポート
+          </div>
+        </div>
+      </div>
+
+      <!-- 問い合わせフォーム -->
+      <div style="font-size:14px;font-weight:800;margin-bottom:12px">📩 お問い合わせ</div>
+      <div style="background:var(--surface);border-radius:16px;padding:16px;border:1px solid var(--border)">
+        <div class="fg" style="margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">会社名・店名</label>
+          <input id="adInq-company" type="text" placeholder="例：株式会社○○ / ○○塾"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;font-family:inherit"
+            onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div class="fg" style="margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">担当者名</label>
+          <input id="adInq-name" type="text" placeholder="例：田中 太郎"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;font-family:inherit"
+            onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div class="fg" style="margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">メールアドレス *</label>
+          <input id="adInq-email" type="email" placeholder="例：info@example.com"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;font-family:inherit"
+            onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div class="fg" style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">ご要望・ご質問</label>
+          <textarea id="adInq-msg" placeholder="ご希望のプランや詳細をご記入ください"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;font-family:inherit;min-height:80px;resize:none"
+            onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+        <button onclick="submitAdInquiry()"
+          style="width:100%;padding:14px;background:var(--grad);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">
+          送信する
+        </button>
+        <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">
+          通常2営業日以内にご返信いたします
+        </div>
+      </div>
+
+      <!-- SNS -->
+      <div style="margin-top:20px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">SNSでのお問い合わせも受け付けています</div>
+        <button onclick="showToast('📸 @wasemeshi_official')" style="font-size:13px;font-weight:700;color:#E1306C;background:#FFF0F5;border:1.5px solid #E1306C;border-radius:10px;padding:8px 16px;cursor:pointer;margin-right:8px">Instagram</button>
+        <button onclick="showToast('🐦 @wasemeshi')" style="font-size:13px;font-weight:700;color:#1DA1F2;background:#F0F8FF;border:1.5px solid #1DA1F2;border-radius:10px;padding:8px 16px;cursor:pointer">X (Twitter)</button>
+      </div>
+
+    </div>
+  `;
+  document.getElementById('adInquiryOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function submitAdInquiry() {
+  const company = document.getElementById('adInq-company')?.value.trim();
+  const name = document.getElementById('adInq-name')?.value.trim();
+  const email = document.getElementById('adInq-email')?.value.trim();
+  const msg = document.getElementById('adInq-msg')?.value.trim();
+  if (!email) { showToast('⚠ メールアドレスを入力してください'); return; }
+  db.collection('ad_inquiries').add({
+    company: company || '未記入',
+    contactName: name || '未記入',
+    email, message: msg || '',
+    ts: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    document.getElementById('adInquiryOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+    showToast('お問い合わせを受け付けました');
+  }).catch(() => {
+    showToast('⚠ 送信に失敗しました。再度お試しください');
+  });
 }
 
 // ─── LUNCH MATE (フレンドコード交換システム) ──────────────────
@@ -4433,26 +4727,34 @@ let friendsList   = JSON.parse(localStorage.getItem('waseMeshiFriends') || '[]')
 
 function saveFriends(){ localStorage.setItem('waseMeshiFriends', JSON.stringify(friendsList)); }
 
+// Firestoreにコードを自動登録（友達検索で見つかるようにするため）
+let _autoRegistered = false;
+function _autoRegisterUser(){
+  if(_autoRegistered) return;
+  _autoRegistered = true;
+  const data = {
+    code: myCode,
+    registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(myLunchName) data.name = myLunchName;
+  if(myLunchIcon) data.icon = myLunchIcon;
+  db.collection('users').doc(myCode).set(data, { merge: true }).catch(() => {
+    _autoRegistered = false; // 失敗したら再試行可能にする
+  });
+}
+
 function renderLunchTab(){
-  // ── マイコード ──
-  const codeEl = document.getElementById('lvMyCode');
-  if(codeEl) codeEl.textContent = myCode;
-  const copyBtn = document.getElementById('lvCopyBtn');
-  if(copyBtn) copyBtn.textContent = t('lunchCopy');
-  const codeHint = document.getElementById('lvCodeHint');
-  if(codeHint) codeHint.textContent = t('lunchCodeHint');
-  const myCodeLabel = document.getElementById('lvMyCodeLabel');
-  if(myCodeLabel) myCodeLabel.textContent = t('lunchMyCode');
-  const addLabel = document.getElementById('lvAddFriendLabel');
-  if(addLabel) addLabel.textContent = t('lunchAddFriend');
-  const addInput = document.getElementById('lvFriendCodeInput');
-  if(addInput) addInput.placeholder = t('lunchAddPlaceholder');
-  const addBtn = document.getElementById('lvAddBtn');
-  if(addBtn) addBtn.textContent = t('lunchAddBtn');
+  // ── 自動登録：Firestoreにコードを書き込む（友達検索で見つかるようにする） ──
+  _autoRegisterUser();
+
+  // ── 自分のステータスカード（sticky）は最初に必ず描画 ──
+  _renderMyCard();
+  updateUnreadBadge();
+  renderStampCard();
 
   // ── フレンド一覧タイトル ──
   const titleEl = document.getElementById('lvFriendsTitle');
-  if(titleEl) titleEl.textContent = `${t('lunchFriendsTitle')}（${friendsList.length}人）`;
+  if(titleEl) titleEl.textContent = `フレンド一覧（${friendsList.length}人）`;
 
   // ── アバター行（今すぐOKの人を上部に大きく表示） ──
   const avatarRow = document.getElementById('lvAvatarRow');
@@ -4483,7 +4785,7 @@ function renderLunchTab(){
 
   // ── フレンドリスト ──
   const fl = document.getElementById('lvFriendsList');
-  if(!fl) return;
+  if(!fl) return; // lvMyCard等は既に上で描画済み
 
   const unreadCount = code => (chatLogs[code]||[]).filter(m=>m.from==='them'&&!m.read).length;
   const renderFriend = f => {
@@ -4533,7 +4835,7 @@ function renderLunchTab(){
 
   if(friendsList.length === 0 && !html) {
     fl.innerHTML = `<div class="lv-empty">${t('lunchFriendsEmpty').replace('\n','<br>')}</div>`;
-    return;
+    return; // lvMyCard等は既に上で描画済み
   }
 
   const nowList   = friendsList.filter(f=>f.status==='now');
@@ -4548,13 +4850,52 @@ function renderLunchTab(){
     if(offList.length)   html += `<div class="lv-group-label" style="color:var(--muted)">${t('lunchOffline')} · ${offList.length}人</div>` + offList.map(renderFriend).join('');
   }
   fl.innerHTML = html;
+}
 
-  // ── スタンプカード ──
-  renderStampCard();
+function renderStampCard() {
+  const el = document.getElementById('stampCardSection');
+  if(!el) return;
+  // 全店舗のスタンプを集計
+  const storeStamps = STORES.map(s => {
+    const count = parseInt(localStorage.getItem(`stamps_${s.id}`) || '0');
+    return { store: s, count };
+  }).filter(x => x.count > 0);
 
-  // ── 自分のステータスカード（sticky） ──
-  _renderMyCard();
-  updateUnreadBadge();
+  if(storeStamps.length === 0) {
+    el.innerHTML = `
+      <div class="lv-section-label">スタンプカード</div>
+      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);text-align:center;color:var(--muted)">
+        <div style="font-size:24px;margin-bottom:6px">🍽️</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px">まだスタンプなし</div>
+        <div style="font-size:11px">QRチェックインするとスタンプが貯まります</div>
+      </div>
+    `;
+    return;
+  }
+
+  const cards = storeStamps.map(({ store, count }) => {
+    const filled = count % 10 === 0 ? 10 : count % 10;
+    const stars = Array.from({length:10}, (_, i) => `<span style="font-size:16px">${i < filled ? '⭐' : '☆'}</span>`).join('');
+    const total = count;
+    const next = 10 - filled;
+    return `
+      <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700">${store.name}</div>
+          <div style="font-size:11px;color:var(--muted)">計${total}回</div>
+        </div>
+        <div style="letter-spacing:2px;margin-bottom:6px">${stars}</div>
+        <div style="font-size:11px;color:${next===0?'var(--brand)':'var(--sub)'}">
+          ${next === 0 ? '🎉 特典GET！次の10回チャレンジ中' : `あと${next}回でクーポン！`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="lv-section-label">スタンプカード</div>
+    ${cards}
+  `;
 }
 
 function _googleBannerHTML(){
@@ -4605,19 +4946,18 @@ function _renderMyCard(){
       </div>
     </div>
 
-    <!-- 行②：QR友達追加ボタン（目立つ） -->
-    <div style="padding:0 14px 10px;display:flex;gap:8px">
-      <button onclick="openQRSheet()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:var(--brand);border:none;border-radius:14px;padding:13px 16px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">
-        📲 QRコードで友達追加
-      </button>
-    </div>
-
-    <!-- 行③：マイコード表示 -->
+    <!-- 行②：マイコード ＋ フレンド追加（同一行） -->
     <div class="lv-code-add-row">
       <div class="lv-code-mini">
-        <span class="lv-code-mini-key">🔑</span>
+        <span class="lv-code-mini-key" style="font-size:11px;color:var(--muted)">コード</span>
         <span class="lv-code-mini-val">${myCode}</span>
         <button class="lv-code-mini-copy" onclick="copyMyCode()">${t('lunchCopy')}</button>
+        <button class="lv-code-mini-copy" onclick="openQRSheet()" style="background:var(--brand);color:#fff;border-color:var(--brand)">QR</button>
+      </div>
+      <div class="lv-add-mini">
+        <input id="lvFriendCodeInput" class="lv-add-mini-input" placeholder="${lang==='en'?'Friend code':'コードを入力'}" maxlength="8"
+          onkeydown="if(event.key==='Enter')addFriend()">
+        <button class="lv-add-mini-btn" onclick="addFriend()" title="友達追加">+</button>
       </div>
     </div>
 
@@ -4708,48 +5048,46 @@ function addFriend(){
     const d = DEMO_FRIENDS[code];
     friendsList.push({ code, name:d.name, dept:d.dept, status:d.status, color:d.color, icon: d.name[0] });
     saveFriends();
-    showToast(`🎉 ${d.name} ${t('lunchToastAdded')}`);
+    showToast(`${d.name} ${t('lunchToastAdded')}`);
     renderLunchTab();
     startFriendListener(code);
     return;
   }
 
-  // Firestore から検索
-  showToast(lang==='en'?'🔍 Searching...':'🔍 検索中...');
+  // ── 即座に追加（Firestoreのread不要・エラー不要）──
+  const color = ['#5b7fa6','#5d9b6b','#7b6d9e','#b07d4a','#4a8a7a','#9e5252'][Math.floor(Math.random()*6)];
+  friendsList.push({ code, name:`ユーザー(${code})`, dept:'', status:null, color, icon:'?' });
+  saveFriends();
+  showToast('追加しました。相手がアプリを開くと情報が同期されます');
+  renderLunchTab();
+
+  // Firestoreにフレンドリクエストを送信（相手への通知 / 失敗しても問題なし）
+  const reqData = {
+    fromCode: myCode,
+    fromName: myLunchName || `ユーザー(${myCode})`,
+    fromIcon: myLunchIcon || '?',
+    fromStatus: myLunchStatus || null,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  db.collection('users').doc(code).set(
+    { pendingRequests: firebase.firestore.FieldValue.arrayUnion(reqData) },
+    { merge: true }
+  ).catch(() => {});
+
+  // Firestoreから相手の情報を非同期で取得して更新（成功すれば名前・アイコンが反映）
   db.collection('users').doc(code).get().then(doc => {
-    if(doc.exists){
-      const d = doc.data();
-      // フレンドリクエストをFirestoreに送信（相手に通知）
-      const reqData = {
-        fromCode: myCode,
-        fromName: myLunchName || myCode,
-        fromIcon: myLunchIcon || '🍱',
-        fromStatus: myLunchStatus || null,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      db.collection('users').doc(code).set(
-        { pendingRequests: firebase.firestore.FieldValue.arrayUnion(reqData) },
-        { merge: true }
-      ).catch(() => {});
-      const color = ['#2980b9','#27ae60','#8e44ad','#e67e22','#16a085','#c0392b'][Math.floor(Math.random()*6)];
-      const friendName = d.name || `ユーザー(${code})`;
-      const friendIcon = d.icon || friendName[0] || '👤';
-      friendsList.push({ code, name: friendName, dept:'', status: d.status||null, color, icon: friendIcon });
-      saveFriends();
-      showToast(`🎉 ${friendName} ${t('lunchToastAdded')}`);
-      renderLunchTab();
-      startFriendListener(code);
-    } else {
-      showToast(lang==='en'?'❌ Code not found. Ask your friend to open the app first!':'❌ コードが見つかりません。友達先にアプリを開いて「ランチ」タブを表示してもらってください');
-    }
-  }).catch(e => {
-    console.warn('addFriend error:', e);
-    if(e.code === 'permission-denied') {
-      showToast('⚠️ Firestoreのセキュリティルールを確認してください');
-    } else {
-      showToast(lang==='en'?'❌ Connection error. Check your internet.':'❌ 接続エラー。ネットを確認してください');
-    }
-  });
+    if(!doc.exists) return;
+    const d = doc.data();
+    const idx = friendsList.findIndex(f => f.code === code);
+    if(idx === -1) return;
+    if(d.name)   friendsList[idx].name = d.name;
+    if(d.icon)   friendsList[idx].icon = d.icon;
+    if(d.status !== undefined) friendsList[idx].status = d.status;
+    saveFriends();
+    if(document.getElementById('viewLunch')?.classList.contains('active')) renderLunchTab();
+  }).catch(() => {}); // 失敗しても既に追加済みなので無視
+
+  startFriendListener(code);
 }
 
 // フレンドごとのリスナー管理
@@ -4782,7 +5120,7 @@ function chatId(codeA, codeB){
 
 function removeFriend(code){
   friendsList = friendsList.filter(f=>f.code!==code);
-  saveFriends();
+  saveAndSyncFriends();
   renderLunchTab();
   showToast(t('lunchToastRemoved'));
 }
@@ -4795,18 +5133,30 @@ function copyMyCode(){
 // ─── QRコード ────────────────────────────────────────────────
 function openQRSheet() {
   const sheet = document.getElementById('qrSheet');
-  const url = `${location.origin}${location.pathname}?add=${myCode}`;
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&color=8C1515&data=${encodeURIComponent(url)}`;
+  // file://で開いている場合はVercel本番URLを使用（ローカルパスはスマホで開けない）
+  const baseUrl = location.protocol === 'file:'
+    ? 'https://exports-seven.vercel.app/waseda-meshi.html'
+    : `${location.origin}${location.pathname}`;
+  const url = `${baseUrl}?add=${myCode}`;
   sheet.innerHTML = `
     <div class="sheet-handle" style="margin-bottom:16px"></div>
-    <div style="font-size:18px;font-weight:900;margin-bottom:4px">📲 QRコードで友達追加</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">スキャンすると自動で追加画面が開くよ</div>
-    <img src="${qrSrc}" style="width:200px;height:200px;border-radius:12px;border:3px solid var(--brand)" alt="QR">
-    <div style="margin-top:16px;background:var(--bg);border-radius:10px;padding:10px 14px;font-size:16px;font-weight:800;letter-spacing:3px;color:var(--brand)">${myCode}</div>
+    <div style="font-size:17px;font-weight:900;margin-bottom:4px">QRコードで友達追加</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">カメラアプリでスキャンしてください</div>
+    <div id="mateQRCanvas" style="background:#fff;border-radius:14px;padding:12px;display:inline-block;border:2px solid var(--border)"></div>
+    <div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:10px 14px;font-size:17px;font-weight:800;letter-spacing:4px;color:var(--brand)">${myCode}</div>
     <div style="margin-top:6px;font-size:12px;color:var(--muted)">コードを直接教えてもOK</div>
     <button onclick="document.getElementById('qrOverlay').classList.remove('open');document.body.style.overflow=''"
       style="margin-top:20px;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:15px;font-weight:700;cursor:pointer;width:100%">閉じる</button>
   `;
+  // QRCode.js で直接描画（外部APIに依存しない）
+  if(typeof QRCode !== 'undefined') {
+    new QRCode(document.getElementById('mateQRCanvas'), {
+      text: url,
+      width: 200,
+      height: 200,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
   document.getElementById('qrOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -4919,8 +5269,9 @@ function openChat(code){
     <div style="display:flex;gap:6px;padding:6px 12px 0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">
       <button onclick="sendQuickMsg('⏰ 今から行ける？')" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;flex-shrink:0">⏰ 今から行ける？</button>
       <button onclick="sendQuickMsg('🕐 何時に行く？')" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;flex-shrink:0">🕐 何時に行く？</button>
-      <button onclick="sendQuickMsg('🍽 腹減った')" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;flex-shrink:0">🍽 腹減った</button>
+      <button onclick="sendQuickMsg('🍽 腹減った！')" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;flex-shrink:0">🍽 腹減った！</button>
       <button onclick="sendQuickMsg('📍 どこ行く？')" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;flex-shrink:0">📍 どこ行く？</button>
+      <button onclick="openStoreShareFromChat()" style="white-space:nowrap;font-size:13px;padding:6px 12px;border:1.5px solid var(--brand);border-radius:20px;background:var(--brand-light);color:var(--brand);cursor:pointer;flex-shrink:0;font-weight:700">🏪 お店を送る</button>
     </div>
     <div class="chat-input-bar">
       <input class="chat-input" id="chatInput" placeholder="${lang==='en'?'Message...':'メッセージを入力...'}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg()}">
@@ -5168,6 +5519,46 @@ function sendQuickMsg(text) {
   sendChatMsg();
 }
 
+function openStoreShareFromChat() {
+  // 混雑少ない順に店舗リスト表示
+  const list = STORES.slice().sort((a,b) => cong[a.id] - cong[b.id]).slice(0, 10);
+  const sheetEl = document.createElement('div');
+  sheetEl.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:2000;background:#fff;border-radius:24px 24px 0 0;padding:16px;max-height:70vh;overflow-y:auto;box-shadow:0 -4px 30px rgba(0,0,0,0.2)';
+  sheetEl.innerHTML = `
+    <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:15px;font-weight:900;margin-bottom:12px">🏪 どのお店を送る？</div>
+    ${list.map(s => {
+      const p = cong[s.id];
+      return `<div onclick="shareStoreInChat(${s.id});document.querySelectorAll('#storeSharePicker,[data-storeShareBg]').forEach(e=>e.remove())" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <div style="font-size:24px">${s.emoji}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${s.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.genre} · ${cWait(p)}</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:${cColor(p)}"></div>
+      </div>`;
+    }).join('')}
+  `;
+  sheetEl.id = 'storeSharePicker';
+  // 背景をタップで閉じる
+  const bg = document.createElement('div');
+  bg.style.cssText = 'position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,0.4)';
+  bg.dataset.storeShareBg = '1';
+  bg.onclick = () => { sheetEl.remove(); bg.remove(); };
+  document.body.appendChild(bg);
+  document.body.appendChild(sheetEl);
+}
+
+function shareStoreInChat(storeId) {
+  const s = STORES.find(x => x.id === storeId);
+  if(!s) return;
+  const p = cong[s.id];
+  const msg = `🏪 ${s.name}\n${s.genre} · ${s.price}\n${cWait(p)} · ${s.hours}`;
+  const input = document.getElementById('chatInput');
+  if(input) input.value = msg;
+  sendChatMsg();
+}
+
 function sendChatMsg(){
   const input = document.getElementById('chatInput');
   if(!input || !currentChatCode) return;
@@ -5249,6 +5640,7 @@ function selectRole(role) {
   setTimeout(() => { screen.style.display = 'none'; }, 380);
 
   if (role === 'user') {
+    localStorage.setItem('waseMeshiRole', 'user'); // ロールを保存
     currentRole = 'user';
     document.getElementById('userUI').style.display = 'block';
     requestNotifPermission();
@@ -5355,32 +5747,13 @@ function initUserUI() {
       const input = document.getElementById('lvFriendCodeInput');
       if (input) {
         input.value = code;
-        showToast(`📲 ${code} をQRで追加中...`);
+        showToast(`${code} をQRで追加中...`);
         setTimeout(() => addFriend(), 500);
       }
     }, 800);
   }
 }
 
-
-function _autoRegisterUser() {
-  // 名前がなくてもコードだけ先に登録しておく（フレンド追加時に見つけられるよう）
-  const userData = {
-    code: myCode,
-    icon: myLunchIcon || '🍱',
-    status: myLunchStatus || null,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  if(myLunchName) userData.name = myLunchName;
-  db.collection('users').doc(myCode).set(userData, { merge: true })
-    .then(() => console.log('✅ ユーザー登録完了:', myCode))
-    .catch(e => {
-      console.warn('auto register error:', e);
-      if(e.code === 'permission-denied') {
-        console.error('⚠️ Firestoreセキュリティルールでusersコレクションへの書き込みが拒否されました。Firebaseコンソールでルールを更新してください。');
-      }
-    });
-}
 
 // ─── FRIEND REQUESTS ─────────────────────────────────────────
 let pendingFriendRequests = [];
@@ -5408,11 +5781,11 @@ function startRequestListener() {
 
 function acceptFriendRequest(fromCode, fromName, fromIcon) {
   if (!friendsList.some(f => f.code === fromCode)) {
-    const color = ['#2980b9','#27ae60','#8e44ad','#e67e22','#16a085','#c0392b'][Math.floor(Math.random()*6)];
+    const color = ['#5b7fa6','#5d9b6b','#7b6d9e','#b07d4a','#4a8a7a','#9e5252'][Math.floor(Math.random()*6)];
     friendsList.push({ code: fromCode, name: fromName, dept: '', status: null, color, icon: fromIcon });
     saveFriends();
     startFriendListener(fromCode);
-    showToast(`🎉 ${fromName} とフレンドになりました！`);
+    showToast(`${fromName} とフレンドになりました`);
   }
   pendingFriendRequests = pendingFriendRequests.filter(r => r.fromCode !== fromCode);
   _clearFriendRequest(fromCode);
@@ -5444,7 +5817,7 @@ STORES.forEach(s => {
     customHours: {}, // { [dayIdx 0=月〜6=日]: string hours | false = 定休 }
     jobs: [],
     likedBy: [],
-    plan: s.plan || '梅',
+    plan: s.plan || 'ライト',
   };
 });
 
@@ -5458,9 +5831,10 @@ ownerData[7].jobs = [
 
 const WAIT_OPTS = [0, 5, 10, 15, 20, 30, 45, 60];
 const SEATS_OPTS = [
-  { id:'normal', label:'余裕あり', icon:'🟢' },
+  { id:'normal', label:'余裕あり',  icon:'🟢' },
   { id:'few',    label:'残り少ない', icon:'🟡' },
-  { id:'full',   label:'満席',    icon:'🔴' },
+  { id:'full',   label:'満席',     icon:'🔴' },
+  { id:'queue',  label:'行列あり',  icon:'🚶' },
 ];
 
 function initOwnerUI() {
@@ -5478,10 +5852,10 @@ function initOwnerUI() {
 }
 
 function switchOwnerTab(idx) {
-  ['ownerViewDash','ownerViewJobs','ownerViewInfo','ownerViewMenu'].forEach((id,i) => {
+  ['ownerViewDash','ownerViewJobs','ownerViewInfo','ownerViewMenu','ownerViewStats'].forEach((id,i) => {
     document.getElementById(id).classList.toggle('active', i === idx);
   });
-  [0,1,2,3].forEach(i => {
+  [0,1,2,3,4].forEach(i => {
     const el = document.getElementById('onav'+i);
     if(el) el.classList.toggle('active', i === idx);
   });
@@ -5489,40 +5863,24 @@ function switchOwnerTab(idx) {
   if (idx === 1) renderOwnerJobs();
   if (idx === 2) renderOwnerInfo();
   if (idx === 3) renderOwnerMenuTab();
+  if (idx === 4) renderOwnerStats();
 }
 
-// ── 営業状態チェック ───────────────────────────────────────────
-// 戻り値: 'open' | 'closed_hours' | 'closed_day'
-function getStoreStatus(store) {
-  if (!store) return 'open';
-  const now = new Date();
-  const dow = now.getDay(); // 0=日,1=月...6=土
-  const DAY_MAP = {'日':0,'月':1,'火':2,'水':3,'木':4,'金':5,'土':6};
-  const closed = store.closed || '';
-
-  // 定休日チェック（無休・不定休は除外）
-  if (closed !== '無休' && closed !== '不定休') {
-    for (const [ch, d] of Object.entries(DAY_MAP)) {
-      if (closed.includes(ch) && dow === d) return 'closed_day';
-    }
-  }
-
-  // 営業時間チェック
-  if (!store.hours) return 'open';
+// ── 営業時間チェック ───────────────────────────────────────────
+function isStoreOpenNow(store) {
+  if (!store || !store.hours) return true; // 不明なら開いてるとみなす
   const m = store.hours.match(/(\d{1,2}):(\d{2})[〜~\-](\d{1,2}):(\d{2})/);
-  if (!m) return 'open';
-  const cur   = now.getHours() * 60 + now.getMinutes();
+  if (!m) return true;
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
   const open  = parseInt(m[1]) * 60 + parseInt(m[2]);
-  let   close = parseInt(m[3]) * 60 + parseInt(m[4]);
-  if (close < open) close += 24 * 60; // 深夜越え対応
-  if (cur < open || cur >= close) return 'closed_hours';
-  return 'open';
+  const close = parseInt(m[3]) * 60 + parseInt(m[4]);
+  return cur >= open && cur < close;
 }
-function isStoreOpenNow(store) { return getStoreStatus(store) === 'open'; }
 
 // ── FCM初期化・トークン取得 ───────────────────────────────────
 // ※ VAPIDキーはFirebaseコンソール > プロジェクト設定 > Cloud Messaging > ウェブプッシュ証明書 から取得
-const FCM_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; // ← Firebaseコンソールで置き換え
+const FCM_VAPID_KEY = 'BKw0U-DxE9tcYWjL-sv8hojeYktMDFzV6nQBSefxPu1YDJyE6C3r3gCXId_88rKBZjLO9eJ0fZi0s7FOyGA1LXg';
 
 let _messaging = null;
 function _getMessaging() {
@@ -5612,19 +5970,19 @@ function renderOwnerDash() {
   scheduleOwnerNotifs(s);
 
   const planInfo = {
-    '松': { label:'松プラン', color:'linear-gradient(135deg,#FFD700,#FFA500)', features:'全機能利用可（バイト募集・QRチェックイン・優先表示・広告非表示）', next:null },
-    '竹': { label:'竹プラン', color:'linear-gradient(135deg,#7CB9E8,#4169E1)', features:'バイト募集・基本機能利用可（QRチェックイン・優先表示は松プランのみ）', next:'松' },
-    '梅': { label:'梅プラン', color:'linear-gradient(135deg,#A8E6CF,#00C853)', features:'基本表示のみ（バイト募集・QR・優先表示は上位プランのみ）', next:'竹' },
+    'プレミアム': { label:'プレミアムプラン', color:'linear-gradient(135deg,#FFD700,#FFA500)', features:'全機能利用可（バイト募集・QRチェックイン・優先表示・広告非表示）', next:null },
+    'スタンダード': { label:'スタンダードプラン', color:'linear-gradient(135deg,#7CB9E8,#4169E1)', features:'バイト募集・基本機能利用可（QRチェックイン・優先表示はプレミアムプランのみ）', next:'プレミアム' },
+    'ライト': { label:'ライトプラン', color:'linear-gradient(135deg,#A8E6CF,#00C853)', features:'基本表示のみ（バイト募集・QR・優先表示は上位プランのみ）', next:'スタンダード' },
   };
-  const curPlan = od.plan || '梅';
-  const pi = planInfo[curPlan] || planInfo['梅'];
+  const curPlan = s?.plan || od.plan || 'ライト';
+  const pi = planInfo[curPlan] || planInfo['ライト'];
 
   document.getElementById('ownerDashBody').innerHTML = `
     <!-- プラン表示 -->
     <div style="background:${pi.color};border-radius:12px;padding:10px 14px;margin-bottom:12px;color:#fff">
       <div style="font-size:13px;font-weight:800;margin-bottom:4px">現在のプラン：${pi.label}</div>
       <div style="font-size:11px;opacity:0.9;margin-bottom:8px">${pi.features}</div>
-      ${pi.next ? `<button onclick="showToast('アップグレードはお問い合わせください')" style="font-size:12px;font-weight:700;background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:#fff;border-radius:8px;padding:5px 14px;cursor:pointer">⬆️ ${pi.next}プランへアップグレード</button>` : `<div style="font-size:11px;font-weight:700">✅ 最上位プランご利用中</div>`}
+      ${pi.next ? `<button onclick="showToast('プランのアップグレードはお問い合わせください')" style="font-size:12px;font-weight:700;background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:#fff;border-radius:8px;padding:5px 14px;cursor:pointer">⬆️ ${pi.next}プランへアップグレード</button>` : `<div style="font-size:11px;font-weight:700">✅ 最上位プランご利用中</div>`}
     </div>
 
     <!-- 混雑ワンタップ -->
@@ -5698,6 +6056,8 @@ function renderOwnerDash() {
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         <button class="note-tpl-btn" onclick="ownerInsertNote('🚫 本日臨時休業')">🚫 臨時休業</button>
         <button class="note-tpl-btn" onclick="ownerInsertNote('⚠️ 本日は混雑気味です')">⚠️ 混雑注意</button>
+        <button class="note-tpl-btn" onclick="ownerInsertNote('🚶 只今行列ができています')">🚶 行列中</button>
+        <button class="note-tpl-btn" onclick="ownerInsertNote('🍱 本日のランチ特典あり！')">🍱 特典あり</button>
         <button class="note-tpl-btn" onclick="ownerInsertNote('')">✕ 削除</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -5736,38 +6096,85 @@ function renderOwnerDash() {
       <button onclick="ownerResetHours()" style="margin-top:10px;font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer">全てリセット（デフォルトに戻す）</button>
     </div>
 
-    <!-- バイト募集ショートカット（竹・松プランのみ） -->
-    ${(curPlan==='竹'||curPlan==='松') && ownerData[ownerStoreId].jobs.filter(j=>j.active).length > 0 ? `
+    <!-- バイト募集ショートカット（スタンダード・プレミアムプランのみ） -->
+    ${(curPlan==='スタンダード'||curPlan==='プレミアム') && ownerData[ownerStoreId].jobs.filter(j=>j.active).length > 0 ? `
     <div class="owner-section">
       <div class="owner-section-title">💼 バイト募集中</div>
       <div style="background:var(--surface);border-radius:12px;padding:12px 14px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:13px;font-weight:600">${ownerData[ownerStoreId].jobs.filter(j=>j.active).length}件掲載中</span>
         <button onclick="switchOwnerTab(1)" style="font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-light);border:none;padding:6px 12px;border-radius:8px;cursor:pointer">管理する →</button>
       </div>
-    </div>` : curPlan==='梅' ? `
+    </div>` : curPlan==='ライト' ? `
     <div class="owner-section">
       <div style="background:var(--surface);border-radius:12px;padding:12px 14px;border:1.5px dashed var(--border);text-align:center;color:var(--muted)">
-        <div style="font-size:12px;margin-bottom:6px">💼 バイト募集掲載は竹プラン以上</div>
-        <button onclick="showToast('アップグレードはお問い合わせください')" style="font-size:11px;font-weight:700;background:var(--brand-light);color:var(--brand);border:none;border-radius:8px;padding:5px 12px;cursor:pointer">⬆️ アップグレード</button>
+        <div style="font-size:12px;margin-bottom:6px">💼 バイト募集掲載はスタンダードプラン以上</div>
+        <button onclick="showToast('プランのアップグレードはお問い合わせください')" style="font-size:11px;font-weight:700;background:var(--brand-light);color:var(--brand);border:none;border-radius:8px;padding:5px 12px;cursor:pointer">⬆️ アップグレード</button>
       </div>
     </div>` : ''}
 
-    <!-- QRチェックイン（松プランのみ） -->
-    ${curPlan==='松' ? `
+    <!-- QRチェックイン（プレミアムプランのみ） -->
+    ${curPlan==='プレミアム' ? `
     <div class="owner-section">
       <div class="owner-section-title">📱 QRチェックイン</div>
-      <div style="background:var(--surface);border-radius:12px;padding:12px 14px;border:1px solid var(--border);text-align:center;color:var(--sub)">
-        <div style="font-size:13px;font-weight:700">QRコード表示・スキャン機能</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">松プランのみ利用可</div>
+      <div style="background:var(--surface);border-radius:12px;padding:16px;border:1px solid var(--border);text-align:center">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">入店チェックイン用QRコード</div>
+        <div id="ownerQRCode" style="display:inline-block;padding:10px;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px">このQRをレジ横などに掲示してください</div>
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+          <button onclick="openOwnerQRScanner()" style="font-size:12px;font-weight:700;background:var(--grad);color:#fff;border:none;border-radius:10px;padding:8px 16px;cursor:pointer">📸 QRをスキャン</button>
+          <button onclick="showQRCheckLog()" style="font-size:12px;font-weight:700;background:var(--brand-light);color:var(--brand);border:none;border-radius:10px;padding:8px 16px;cursor:pointer">📋 履歴</button>
+        </div>
       </div>
     </div>` : `
     <div class="owner-section">
       <div style="background:var(--surface);border-radius:12px;padding:12px 14px;border:1.5px dashed var(--border);text-align:center;color:var(--muted)">
-        <div style="font-size:12px;margin-bottom:6px">📱 QRチェックインは松プランのみ</div>
-        <button onclick="showToast('アップグレードはお問い合わせください')" style="font-size:11px;font-weight:700;background:var(--brand-light);color:var(--brand);border:none;border-radius:8px;padding:5px 12px;cursor:pointer">⬆️ 松プランへ</button>
+        <div style="font-size:12px;margin-bottom:6px">📱 QRチェックインはプレミアムプランのみ</div>
+        <button onclick="showToast('プランのアップグレードはお問い合わせください')" style="font-size:11px;font-weight:700;background:var(--brand-light);color:var(--brand);border:none;border-radius:8px;padding:5px 12px;cursor:pointer">⬆️ プレミアムプランへ</button>
       </div>
     </div>`}
   `;
+  // QRコード生成（プレミアムプランのみ）
+  if(curPlan === 'プレミアム') {
+    setTimeout(() => {
+      const qrEl = document.getElementById('ownerQRCode');
+      if(qrEl && typeof QRCode !== 'undefined') {
+        qrEl.innerHTML = '';
+        const checkInUrl = `https://exports-seven.vercel.app/?checkin=${ownerStoreId}`;
+        new QRCode(qrEl, { text: checkInUrl, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+      }
+    }, 100);
+  }
+}
+
+// QRスキャン（カメラ起動）
+function openOwnerQRScanner() {
+  showToast('📷 カメラ機能は近日公開予定です');
+}
+
+// QRチェックイン履歴表示
+function showQRCheckLog() {
+  const storeId = ownerStoreId;
+  db.collection('checkins').where('storeId','==',storeId)
+    .orderBy('ts','desc').limit(20).get().then(snap => {
+      if(snap.empty){ showToast('まだチェックイン記録がありません'); return; }
+      const rows = snap.docs.map(d => {
+        const data = d.data();
+        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
+        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>${data.userName || '匿名'}</span>
+          <span style="color:var(--muted)">${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}</span>
+        </div>`;
+      }).join('');
+      // シートで表示
+      document.getElementById('detailSheet').innerHTML = `
+        <div class="sheet-handle"></div>
+        <div style="padding:20px 18px 40px">
+          <div style="font-size:17px;font-weight:900;margin-bottom:16px">📋 チェックイン履歴</div>
+          ${rows}
+        </div>
+      `;
+      document.getElementById('detailOverlay').classList.add('open');
+    }).catch(() => showToast('📋 履歴取得に失敗しました'));
 }
 
 function ownerSetCong(id, pct) {
@@ -5778,7 +6185,7 @@ function ownerSetCong(id, pct) {
   renderOwnerDash();
   renderFeed();
   updateMapMarkers();
-  showToast('✅ 混雑情報を更新しました');
+  showToast('混雑情報を更新しました');
 }
 
 function ownerSetWait(w) {
@@ -5813,7 +6220,7 @@ function ownerSetSpecial(val) {
     const today = new Date().toDateString();
     writeOwnerDataToFirestore(ownerStoreId, { todaySpecial: val, todaySpecialDate: today });
     renderFeed();
-    showToast(val ? '💬 一言を保存しました' : '✅ 一言を削除しました');
+    showToast(val ? '一言を保存しました' : '一言を削除しました');
   }, 1000);
 }
 
@@ -5827,14 +6234,14 @@ function ownerInsertNote(text){
   if(cc) cc.textContent = `${text.length}/40`;
   renderOwnerDash();
   renderFeed();
-  showToast(text ? '📝 一言を設定しました' : '✅ 一言を削除しました');
+  showToast(text ? '一言を設定しました' : '一言を削除しました');
 }
 
 function ownerSetDayHours(dayIdx, val){
   if(!ownerData[ownerStoreId].customHours) ownerData[ownerStoreId].customHours = {};
   ownerData[ownerStoreId].customHours[dayIdx] = val;
   writeOwnerDataToFirestore(ownerStoreId, { customHours: ownerData[ownerStoreId].customHours });
-  showToast('✅ 営業時間を更新しました');
+  showToast('営業時間を更新しました');
 }
 
 function ownerToggleDayClosed(dayIdx){
@@ -5843,7 +6250,7 @@ function ownerToggleDayClosed(dayIdx){
   ownerData[ownerStoreId].customHours[dayIdx] = current === false ? undefined : false;
   writeOwnerDataToFirestore(ownerStoreId, { customHours: ownerData[ownerStoreId].customHours });
   renderOwnerDash();
-  showToast(ownerData[ownerStoreId].customHours[dayIdx] === false ? '🚫 定休日に設定しました' : '✅ 営業日に戻しました');
+  showToast(ownerData[ownerStoreId].customHours[dayIdx] === false ? '定休日に設定しました' : '営業日に戻しました');
 }
 
 function ownerResetHours(){
@@ -5909,7 +6316,15 @@ function _renderOwnerMenuList() {
 function ownerMenuCatName(ci, val){ ownerData[ownerStoreId].menu[ci].cat = val; }
 function ownerMenuItemField(ci, ii, field, val){ ownerData[ownerStoreId].menu[ci].items[ii][field] = val; }
 function ownerMenuAddItem(ci){
-  ownerData[ownerStoreId].menu[ci].items.push({n:'',p:'',note:''});
+  const s = STORES.find(x => x.id === ownerStoreId);
+  const plan = s?.plan || 'ライト';
+  const menu = ownerData[ownerStoreId].menu;
+  const totalItems = menu.reduce((sum, cat) => sum + cat.items.length, 0);
+  if (plan === 'ライト' && totalItems >= 10) {
+    showToast('⚠️ ライトプランはメニュー最大10品まで。スタンダード・プレミアムプランにアップグレードすると無制限に！');
+    return;
+  }
+  menu[ci].items.push({n:'',p:'',note:''});
   _renderOwnerMenuList();
 }
 function ownerMenuDelItem(ci, ii){
@@ -5930,13 +6345,32 @@ function ownerMenuSave(){
   writeOwnerDataToFirestore(ownerStoreId, { menu });
   const s = STORES.find(x=>x.id===ownerStoreId);
   if(s) s.menu = JSON.parse(JSON.stringify(menu));
-  showToast('✅ メニューを保存しました！');
+  showToast('メニューを保存しました');
 }
 
 // ── バイト募集タブ ────────────────────────────────────────────
 function renderOwnerJobs() {
   const od = ownerData[ownerStoreId];
   const s  = STORES.find(x => x.id === ownerStoreId);
+  const plan = s?.plan || 'ライト';
+
+  // ライトプランはバイト掲載不可
+  if (plan === 'ライト') {
+    document.getElementById('ownerJobsBody').innerHTML = `
+      <div class="owner-section" style="text-align:center;padding:40px 24px">
+        <div style="font-size:48px;margin-bottom:12px">💼</div>
+        <div style="font-size:17px;font-weight:900;margin-bottom:8px">バイト募集はスタンダードプラン以上</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.7">
+          バイト求人の掲載・管理は<br>スタンダードプラン・プレミアムプランで利用できます。
+        </div>
+        <button onclick="showToast('プランのアップグレードはお問い合わせください')"
+          style="background:linear-gradient(135deg,#7CB9E8,#4169E1);color:#fff;border:none;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer">
+          ⬆️ スタンダードプランへアップグレード
+        </button>
+      </div>
+    `;
+    return;
+  }
 
   document.getElementById('ownerJobsBody').innerHTML = `
     <div class="owner-section">
@@ -5969,6 +6403,39 @@ function renderOwnerJobs() {
   `;
   // 応募者リストを取得
   loadApplicants();
+}
+
+function loadApplicants() {
+  const store = STORES.find(x => x.id === ownerStoreId);
+  if(!store) return;
+  db.collection('applications').where('storeName','==',store.name)
+    .limit(20).get().then(snap => {
+      const el = document.getElementById('applicantsList');
+      if(!el) return;
+      if(snap.empty) {
+        el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px">まだ応募者がいません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => {
+        const data = d.data();
+        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
+        const dateStr = `${dt.getMonth()+1}/${dt.getDate()}`;
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:13px;font-weight:700">${data.applicantName}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${data.dept||''} · ${data.jobTitle}</div>
+              <div style="font-size:12px;color:var(--brand);margin-top:3px">📱 ${data.contact}</div>
+              ${data.message?`<div style="font-size:11px;color:var(--sub);margin-top:4px;font-style:italic">"${data.message}"</div>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px">${dateStr}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }).catch(() => {
+      const el = document.getElementById('applicantsList');
+      if(el) el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center">応募者データを取得できませんでした</div>';
+    });
 }
 
 function jobCardHTML(j) {
@@ -6038,7 +6505,7 @@ function submitJob() {
   document.getElementById('jobFormOverlay').classList.remove('open');
   document.body.style.overflow = '';
   switchOwnerTab(1);
-  showToast('✅ 求人を掲載しました！');
+  showToast('求人を掲載しました');
 }
 
 // ── 応募フォーム（ユーザー用） ────────────────────────────────
@@ -6069,11 +6536,21 @@ function openApplyForm(jobTitle, storeName) {
 
 function submitApply(jobTitle, storeName) {
   const name    = document.getElementById('ap-name').value.trim();
+  const dept    = document.getElementById('ap-dept').value.trim();
   const contact = document.getElementById('ap-contact').value.trim();
+  const msg     = document.getElementById('ap-msg').value.trim();
   if (!name || !contact) { showToast('⚠ 名前と連絡先は必須です'); return; }
+  // Firestoreに応募データを保存
+  db.collection('applications').add({
+    jobTitle, storeName,
+    applicantName: name,
+    dept, contact, message: msg,
+    userCode: myCode || null,
+    ts: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
   document.getElementById('applyOverlay').classList.remove('open');
   document.body.style.overflow = '';
-  showToast('✅ 応募完了！お店からの連絡をお待ちください');
+  showToast('応募完了。お店からの連絡をお待ちください');
 }
 
 // ── 店舗情報タブ ──────────────────────────────────────────────
@@ -6108,7 +6585,7 @@ function ownerSaveField(field) {
   else if(field==='maxGroup') s.maxGroup = parseInt(val)||s.maxGroup;
   else s[field] = val;
   renderOwnerInfo();
-  showToast('✅ '+field+' を更新しました');
+  showToast(field+' を更新しました');
 }
 
 function renderOwnerInfo() {
@@ -6137,9 +6614,20 @@ function renderOwnerInfo() {
       <div class="owner-section-title">📋 掲載プラン</div>
       <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border)">
         <div style="font-size:13px;color:var(--muted);margin-bottom:10px">現在のプラン</div>
-        <div style="font-size:20px;font-weight:900;color:var(--brand);margin-bottom:4px">${s.paid?'スタンダード ¥2,000/月':'無料プラン'}</div>
-        <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${s.paid?'上位表示・メニュー無制限・混雑手動更新':'基本情報のみ'}</div>
-        ${!s.paid?`<button onclick="showToast('📩 アップグレードのご案内をメールで送ります')" style="width:100%;padding:10px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">スタンダードにアップグレード</button>`:''}
+        ${(()=>{
+          const plan = s.plan || 'ライト';
+          const planConfig = {
+            'プレミアム': { label:'プレミアムプラン', price:'¥5,000/月', desc:'全機能利用可（バイト・QR・優先表示・広告非表示）', color:'linear-gradient(135deg,#FFD700,#FFA500)', next:null },
+            'スタンダード': { label:'スタンダードプラン', price:'¥3,000/月', desc:'バイト募集・基本機能（QRはプレミアムプランのみ）', color:'linear-gradient(135deg,#7CB9E8,#4169E1)', next:'プレミアム' },
+            'ライト': { label:'ライトプラン（無料）', price:'¥0/月', desc:'基本表示のみ', color:'linear-gradient(135deg,#A8E6CF,#00C853)', next:'スタンダード' },
+          };
+          const pc = planConfig[plan];
+          return `<div style="background:${pc.color};border-radius:10px;padding:12px 14px;margin-bottom:10px;color:#fff">
+            <div style="font-size:16px;font-weight:900">${pc.label}</div>
+            <div style="font-size:12px;opacity:0.9;margin-top:2px">${pc.price} · ${pc.desc}</div>
+          </div>
+          ${pc.next ? `<button onclick="closeSheets();setTimeout(openAdInquiry,200)" style="width:100%;padding:10px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">⬆️ ${pc.next}プランへアップグレード</button>` : '<div style="font-size:12px;color:var(--green);font-weight:700">✅ 最上位プランをご利用中</div>'}`;
+        })()}
       </div>
     </div>
   `;
@@ -6148,149 +6636,10 @@ function ownerSavePR() {
   const s = STORES.find(x => x.id === ownerStoreId);
   const val = document.getElementById('ownerPrText').value.trim();
   if(val) s.pr = val;
-  showToast('✅ PRを更新しました');
+  showToast('PRを更新しました');
 }
 
-// ── ユーザー側の求人表示（店舗詳細に追加） ───────────────────
-function jobListingsHTML(storeId) {
-  const jobs = ownerData[storeId]?.jobs?.filter(j => j.active) || [];
-  if (!jobs.length) return '';
-  return `
-    <div class="job-listing-section">
-      <div class="section-divider">💼 バイト募集</div>
-      ${jobs.map(j => `
-        <div class="job-listing-card">
-          <div class="jlc-header">
-            <span class="jlc-badge">募集中</span>
-            <span class="jlc-title">${j.title}</span>
-          </div>
-          <div class="jlc-meta">
-            💰 ${j.pay}<br>
-            🕐 ${j.shift}<br>
-            📝 ${j.note}
-          </div>
-          <button class="jlc-apply-btn" onclick="openApplyForm('${j.title}', s.name)">応募する</button>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-// ── スタンプカード ────────────────────────────────────────────
-function renderStampCard() {
-  const el = document.getElementById('stampCardSection');
-  if(!el) return;
-  const storeStamps = STORES.map(s => {
-    const count = parseInt(localStorage.getItem(`stamps_${s.id}`) || '0');
-    return { store: s, count };
-  }).filter(x => x.count > 0);
-
-  if(storeStamps.length === 0) {
-    el.innerHTML = `
-      <div class="lv-section-label">スタンプカード</div>
-      <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);text-align:center;color:var(--muted)">
-        <div style="font-size:24px;margin-bottom:6px">🍽️</div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:2px">まだスタンプなし</div>
-        <div style="font-size:11px">QRチェックインするとスタンプが貯まります</div>
-      </div>
-    `;
-    return;
-  }
-
-  const cards = storeStamps.map(({ store, count }) => {
-    const filled = count % 10 === 0 ? 10 : count % 10;
-    const stars = Array.from({length:10}, (_, i) => `<span style="font-size:16px">${i < filled ? '⭐' : '☆'}</span>`).join('');
-    const total = count;
-    const next = 10 - filled;
-    return `
-      <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700">${store.name}</div>
-          <div style="font-size:11px;color:var(--muted)">計${total}回</div>
-        </div>
-        <div style="letter-spacing:2px;margin-bottom:6px">${stars}</div>
-        <div style="font-size:11px;color:${next===0?'var(--brand)':'var(--sub)'}">
-          ${next === 0 ? '🎉 特典GET！次の10回チャレンジ中' : `あと${next}回でクーポン！`}
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="lv-section-label">スタンプカード</div>
-    ${cards}
-  `;
-}
-
-// ── チャットで店舗シェア ──────────────────────────────────────
-function openStoreShareFromChat() {
-  const list = STORES.slice().sort((a,b) => cong[a.id] - cong[b.id]).slice(0, 10);
-  const sheetEl = document.createElement('div');
-  sheetEl.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:2000;background:#fff;border-radius:24px 24px 0 0;padding:16px;max-height:70vh;overflow-y:auto;box-shadow:0 -4px 30px rgba(0,0,0,0.2)';
-  sheetEl.innerHTML = `
-    <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px"></div>
-    <div style="font-size:15px;font-weight:900;margin-bottom:12px">🏪 どのお店を送る？</div>
-    ${list.map(s => {
-      const p = cong[s.id];
-      return `<div onclick="shareStoreInChat(${s.id});document.querySelectorAll('#storeSharePicker,[data-storeShareBg]').forEach(e=>e.remove())" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
-        <div style="font-size:24px">${s.emoji}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">${s.name}</div>
-          <div style="font-size:11px;color:var(--muted)">${s.genre} · ${cWait(p)}</div>
-        </div>
-        <div style="width:8px;height:8px;border-radius:50%;background:${cColor(p)}"></div>
-      </div>`;
-    }).join('')}
-  `;
-  sheetEl.id = 'storeSharePicker';
-  const bg = document.createElement('div');
-  bg.style.cssText = 'position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,0.4)';
-  bg.dataset.storeShareBg = '1';
-  bg.onclick = () => { sheetEl.remove(); bg.remove(); };
-  document.body.appendChild(bg);
-  document.body.appendChild(sheetEl);
-}
-
-function shareStoreInChat(storeId) {
-  const s = STORES.find(x => x.id === storeId);
-  if(!s) return;
-  const p = cong[s.id];
-  const msg = `🏪 ${s.name}\n${s.genre} · ${s.price}\n${cWait(p)} · ${s.hours}`;
-  const input = document.getElementById('chatInput');
-  if(input) input.value = msg;
-  sendChatMsg();
-}
-
-// ── QRスキャン・チェックイン履歴 ─────────────────────────────
-function openOwnerQRScanner() {
-  showToast('📷 カメラ機能は近日公開予定です');
-}
-
-function showQRCheckLog() {
-  const storeId = ownerStoreId;
-  db.collection('checkins').where('storeId','==',storeId)
-    .orderBy('ts','desc').limit(20).get().then(snap => {
-      if(snap.empty){ showToast('まだチェックイン記録がありません'); return; }
-      const rows = snap.docs.map(d => {
-        const data = d.data();
-        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
-        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-          <span>${data.userName || '匿名'}</span>
-          <span style="color:var(--muted)">${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}</span>
-        </div>`;
-      }).join('');
-      document.getElementById('detailSheet').innerHTML = `
-        <div class="sheet-handle"></div>
-        <div style="padding:20px 18px 40px">
-          <div style="font-size:17px;font-weight:900;margin-bottom:16px">📋 チェックイン履歴</div>
-          ${rows}
-        </div>
-      `;
-      document.getElementById('detailOverlay').classList.add('open');
-    }).catch(() => showToast('📋 履歴取得に失敗しました'));
-}
-
-// ── オーナー統計 ──────────────────────────────────────────────
+// ── 統計ダッシュボード ────────────────────────────────────────
 function renderOwnerStats() {
   const s = STORES.find(x => x.id === ownerStoreId);
   const od = ownerData[ownerStoreId] || {};
@@ -6298,9 +6647,11 @@ function renderOwnerStats() {
   const body = document.getElementById('ownerStatsBody');
   if(!body) return;
 
+  // 今日の日付キー
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
 
+  // ローカル統計（Firestoreから取得）
   body.innerHTML = `
     <div style="padding:16px">
       <div style="font-size:18px;font-weight:900;margin-bottom:16px;color:var(--text)">📊 統計ダッシュボード</div>
@@ -6313,6 +6664,7 @@ function renderOwnerStats() {
         <button onclick="showToast('プランのアップグレードはお問い合わせください')" style="font-size:12px;font-weight:700;background:var(--grad);color:#fff;border:none;border-radius:10px;padding:8px 18px;cursor:pointer">⬆️ アップグレード</button>
       </div>` : `
 
+      <!-- 今日のサマリー -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
         <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);text-align:center">
           <div style="font-size:28px;font-weight:900;color:var(--brand)" id="stat-views">-</div>
@@ -6332,6 +6684,7 @@ function renderOwnerStats() {
         </div>
       </div>
 
+      <!-- 混雑率グラフ（今日） -->
       <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
         <div style="font-size:14px;font-weight:700;margin-bottom:12px">📈 今日の混雑推移</div>
         <div id="congChart" style="height:80px;display:flex;align-items:flex-end;gap:3px">
@@ -6342,12 +6695,14 @@ function renderOwnerStats() {
         </div>
       </div>
 
+      <!-- バイト応募状況（スタンダード・プレミアムのみ） -->
       ${(curPlan==='スタンダード'||curPlan==='プレミアム') ? `
       <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px">💼 バイト応募状況</div>
         <div style="font-size:13px;color:var(--muted)" id="stat-jobs-summary">集計中...</div>
       </div>` : ''}
 
+      <!-- プレミアムプラン専用：QRチェックイン詳細 -->
       ${curPlan==='プレミアム' ? `
       <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px">📱 チェックイン詳細（直近7日）</div>
@@ -6365,6 +6720,7 @@ function renderOwnerStats() {
 }
 
 function loadOwnerStats(storeId, plan, todayKey) {
+  // 閲覧数（views コレクション）
   db.collection('stats').doc(storeId).get().then(doc => {
     const data = doc.exists ? doc.data() : {};
     const todayViews = data[`views_${todayKey}`] || 0;
@@ -6378,10 +6734,19 @@ function loadOwnerStats(storeId, plan, todayKey) {
     const elW = document.getElementById('stat-week');
     if(elW) elW.textContent = weekViews;
 
+    // お気に入り数（likedByから取得）
     const favs = (ownerData[storeId]?.likedBy || []).length;
     const elF = document.getElementById('stat-favs');
     if(elF) elF.textContent = favs;
+    // Firestoreからも最新を取得
+    db.collection('storeData').doc(String(storeId)).get().then(d => {
+      if(d.exists && d.data().likedBy) {
+        const elF2 = document.getElementById('stat-favs');
+        if(elF2) elF2.textContent = d.data().likedBy.length;
+      }
+    }).catch(()=>{});
 
+    // 混雑推移グラフ（今日の時間別データ）
     const hours = Array.from({length: 24}, (_, h) => data[`cong_${todayKey}_${h}`] || 0);
     const maxH = Math.max(...hours, 1);
     const chartEl = document.getElementById('congChart');
@@ -6395,6 +6760,7 @@ function loadOwnerStats(storeId, plan, todayKey) {
     }
   }).catch(() => {});
 
+  // チェックイン数
   if(plan === 'プレミアム') {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     db.collection('checkins').where('storeId','==',storeId)
@@ -6402,6 +6768,7 @@ function loadOwnerStats(storeId, plan, todayKey) {
         const el = document.getElementById('stat-checkins');
         if(el) el.textContent = snap.size;
 
+        // 直近7日のチェックイン
         const chartEl = document.getElementById('stat-checkin-chart');
         if(chartEl) {
           const byDay = {};
@@ -6433,6 +6800,7 @@ function loadOwnerStats(storeId, plan, todayKey) {
     if(el) { el.textContent = '-'; el.style.color = 'var(--muted)'; }
   }
 
+  // バイト応募数
   if(plan === 'スタンダード' || plan === 'プレミアム') {
     const jobs = ownerData[storeId]?.jobs?.filter(j => j.active) || [];
     const el = document.getElementById('stat-jobs-summary');
@@ -6440,38 +6808,33 @@ function loadOwnerStats(storeId, plan, todayKey) {
   }
 }
 
-// ── 応募者管理 ────────────────────────────────────────────────
-function loadApplicants() {
-  const store = STORES.find(x => x.id === ownerStoreId);
-  if(!store) return;
-  db.collection('applications').where('storeName','==',store.name)
-    .limit(20).get().then(snap => {
-      const el = document.getElementById('applicantsList');
-      if(!el) return;
-      if(snap.empty) {
-        el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px">まだ応募者がいません</div>';
-        return;
-      }
-      el.innerHTML = snap.docs.map(d => {
-        const data = d.data();
-        const dt = data.ts?.toDate ? data.ts.toDate() : new Date();
-        const dateStr = `${dt.getMonth()+1}/${dt.getDate()}`;
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div>
-              <div style="font-size:13px;font-weight:700">${data.applicantName}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${data.dept||''} · ${data.jobTitle}</div>
-              <div style="font-size:12px;color:var(--brand);margin-top:3px">📱 ${data.contact}</div>
-              ${data.message?`<div style="font-size:11px;color:var(--sub);margin-top:4px;font-style:italic">"${data.message}"</div>`:''}
-            </div>
-            <div style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px">${dateStr}</div>
+// ── ユーザー側の求人表示（店舗詳細に追加） ───────────────────
+function jobListingsHTML(storeId) {
+  // バイト掲載はスタンダード・プレミアムプランのみ
+  const store = STORES.find(x => x.id === storeId);
+  const plan = store?.plan || 'ライト';
+  if (plan === 'ライト') return '';
+  const jobs = ownerData[storeId]?.jobs?.filter(j => j.active) || [];
+  if (!jobs.length) return '';
+  return `
+    <div class="job-listing-section">
+      <div class="section-divider">💼 バイト募集</div>
+      ${jobs.map(j => `
+        <div class="job-listing-card">
+          <div class="jlc-header">
+            <span class="jlc-badge">募集中</span>
+            <span class="jlc-title">${j.title}</span>
           </div>
-        </div>`;
-      }).join('');
-    }).catch(() => {
-      const el = document.getElementById('applicantsList');
-      if(el) el.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center">応募者データを取得できませんでした</div>';
-    });
+          <div class="jlc-meta">
+            💰 ${j.pay}<br>
+            🕐 ${j.shift}<br>
+            📝 ${j.note}
+          </div>
+          <button class="jlc-apply-btn" onclick="openApplyForm('${j.title}', '${store.name}')">応募する</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 // ── プルトゥリフレッシュ ──────────────────────────────────────
@@ -6512,15 +6875,24 @@ function loadApplicants() {
   }, { passive: true });
 })();
 
+// ─── INIT ────────────────────────────────────────────────────
+renderStories();
+renderFeed();
+renderSituationGrid();
+renderPersonRow();
+renderGenreGrid();
+
 // ── QRチェックイン処理（URLパラメータ） ──────────────────────
 (function handleCheckinParam() {
   const params = new URLSearchParams(location.search);
   const storeId = params.get('checkin');
   if(!storeId) return;
+  // URLをクリーン
   history.replaceState({}, document.title, location.pathname);
   const store = STORES.find(x => x.id === storeId);
   if(!store) return;
 
+  // チェックイン実行
   const doCheckin = (userName) => {
     const checkData = {
       storeId,
@@ -6529,9 +6901,11 @@ function loadApplicants() {
       ts: firebase.firestore.FieldValue.serverTimestamp()
     };
     db.collection('checkins').add(checkData).then(() => {
+      // スタンプカード更新
       const stampKey = `stamps_${storeId}`;
       let stamps = parseInt(localStorage.getItem(stampKey) || '0') + 1;
       localStorage.setItem(stampKey, stamps);
+      // 統計カウントアップ
       const todayKey = `${new Date().getFullYear()}-${new Date().getMonth()+1}-${new Date().getDate()}`;
       db.collection('stats').doc(storeId).set({
         [`views_${todayKey}`]: firebase.firestore.FieldValue.increment(1)
@@ -6580,13 +6954,6 @@ function showCheckinSuccess(storeName, stamps) {
   document.body.style.overflow = 'hidden';
 }
 
-// ─── INIT ────────────────────────────────────────────────────
-renderStories();
-renderFeed();
-renderSituationGrid();
-renderPersonRow();
-renderGenreGrid();
-
 // 古いService Workerをすべて解除（キャッシュ問題の根本対策）
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -6598,17 +6965,21 @@ if('serviceWorker' in navigator){
 }
 
 // ── ページ読み込み時にロールを自動復元 ──────────────────────────
+// Googleリダイレクト後などページリロード時にロール選択を省略する
 (function autoRestoreRole(){
   const savedRole = localStorage.getItem('waseMeshiRole');
   if(savedRole === 'user'){
+    // ロール選択画面を即非表示にしてユーザーUIを起動
     const screen = document.getElementById('roleScreen');
     if(screen){ screen.style.display = 'none'; }
     document.getElementById('userUI').style.display = 'block';
     currentRole = 'user';
     initUserUI();
+    // 最後に見ていたタブを復元（なければhome）
     const savedTab = localStorage.getItem('waseMeshiTab') || 'home';
     switchTab(savedTab);
   }
+  // owner は毎回パスワード認証が必要なためリセット
   if(savedRole === 'owner'){
     localStorage.removeItem('waseMeshiRole');
   }
