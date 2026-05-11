@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ワセ飯 ユーザーアンケート</title>
+  <style>
+    :root {
+      --primary: #8C1515;
+      --primary-light: #a91e1e;
+      --primary-dark: #6b1010;
+      --primary-bg: #fdf5f5;
+      --surface: #ffffff;
+      --border: #e8d5d5;
+      --text: #1a1a1a;
+      --text-sub: #666666;
+      --radius: 16px;
+      --shadow: 0 2px 16px rgba(140,21,21,0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'ヒラギノ角ゴシック', 'Noto Sans JP', sans-serif;
+      background: #f5eded;
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* Header */
+    .header {
+      background: var(--primary);
+      padding: 20px 20px 24px;
+      text-align: center;
+      position: relative;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.04em;
+    }
+    .header-subtitle {
+      font-size: 13px;
+      color: rgba(255,255,255,0.80);
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    /* App intro card */
+    .intro-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--primary);
+    }
+    .intro-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .intro-card p {
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text-sub);
+    }
+    .intro-card .highlight {
+      color: var(--text);
+      font-weight: 600;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    /* Question card */
+    .q-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+    .q-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .q-num {
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .q-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* Star rating */
+    .star-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 4px 0;
+    }
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 36px;
+      cursor: pointer;
+      color: #ddd;
+      transition: transform 0.15s, color 0.15s;
+      padding: 4px;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .star-btn.active { color: #f5a623; }
+    .star-btn:active { transform: scale(1.2); }
+    .star-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 8px;
+      padding: 0 4px;
+    }
+
+    /* Checkbox group */
+    .check-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .check-item input[type="checkbox"] { display: none; }
+    .check-box {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .check-item.checked .check-box {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .check-item.checked .check-box::after {
+      content: '';
+      width: 6px;
+      height: 10px;
+      border: 2px solid #fff;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translate(-1px, -1px);
+      display: block;
+    }
+    .check-item.checked {
+      border-color: var(--primary);
+      background: var(--primary-bg);
+    }
+    .check-label {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    /* Textarea */
+    .q-textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      resize: vertical;
+      min-height: 90px;
+      transition: border-color 0.2s;
+      outline: none;
+      background: #fafafa;
+    }
+    .q-textarea:focus {
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .q-textarea::placeholder { color: #bbb; }
+
+    /* Recommend buttons */
+    .recommend-group {
+      display: flex;
+      gap: 8px;
+    }
+    .recommend-btn {
+      flex: 1;
+      padding: 14px 8px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: #fafafa;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1.4;
+    }
+    .recommend-btn .rec-emoji { font-size: 22px; display: block; margin-bottom: 4px; }
+    .recommend-btn.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+    .recommend-btn:not(.selected):active { background: var(--primary-bg); }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%;
+      padding: 18px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 17px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 8px;
+      box-shadow: 0 4px 20px rgba(140,21,21,0.35);
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      letter-spacing: 0.04em;
+    }
+    .submit-btn:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 10px rgba(140,21,21,0.2);
+    }
+    .submit-btn:disabled {
+      background: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Thank you screen */
+    .thankyou {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .thankyou-emoji { font-size: 64px; margin-bottom: 20px; }
+    .thankyou h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+    .thankyou p {
+      font-size: 15px;
+      color: var(--text-sub);
+      line-height: 1.8;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-msg {
+      color: var(--primary);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-logo">
+      <div class="logo-icon">🍜</div>
+      <span class="logo-text">ワセ飯</span>
+    </div>
+    <div class="header-subtitle">ユーザーアンケート</div>
+  </div>
+
+  <div class="container" id="formContainer">
+
+    <!-- Intro -->
+    <div class="intro-card">
+      <h2>🍜 ワセ飯とは？</h2>
+      <p>
+        早稲田大学生のための飯マップアプリです。<br>
+        キャンパス周辺の飲食店のリアルタイム混雑情報、<br>
+        メニュー・営業時間の確認、フレンド機能でお昼を<br>
+        一緒に食べる仲間を見つけることができます。
+      </p>
+      <p class="highlight">あなたのフィードバックが、アプリをもっと良くします。ぜひ率直な意見を聞かせてください！🙏</p>
+    </div>
+
+    <!-- Q1 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q1</span>
+        <span class="q-text">ワセ飯アプリの全体的な満足度は？</span>
+      </div>
+      <div class="star-group" id="stars-q1">
+        <button class="star-btn" data-q="q1" data-v="1" onclick="setStar('q1',1)">★</button>
+        <button class="star-btn" data-q="q1" data-v="2" onclick="setStar('q1',2)">★</button>
+        <button class="star-btn" data-q="q1" data-v="3" onclick="setStar('q1',3)">★</button>
+        <button class="star-btn" data-q="q1" data-v="4" onclick="setStar('q1',4)">★</button>
+        <button class="star-btn" data-q="q1" data-v="5" onclick="setStar('q1',5)">★</button>
+      </div>
+      <div class="star-label"><span>不満</span><span>普通</span><span>大満足</span></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q2</span>
+        <span class="q-text">使いやすさはどうでしたか？</span>
+      </div>
+      <div class="star-group" id="stars-q2">
+        <button class="star-btn" data-q="q2" data-v="1" onclick="setStar('q2',1)">★</button>
+        <button class="star-btn" data-q="q2" data-v="2" onclick="setStar('q2',2)">★</button>
+        <button class="star-btn" data-q="q2" data-v="3" onclick="setStar('q2',3)">★</button>
+        <button class="star-btn" data-q="q2" data-v="4" onclick="setStar('q2',4)">★</button>
+        <button class="star-btn" data-q="q2" data-v="5" onclick="setStar('q2',5)">★</button>
+      </div>
+      <div class="star-label"><span>難しい</span><span>普通</span><span>簡単</span></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q3</span>
+        <span class="q-text">一番使った機能はどれですか？<br><small style="font-weight:400;color:#999;">（複数選択可）</small></span>
+      </div>
+      <div class="check-group" id="features-group">
+        <label class="check-item" onclick="toggleCheck(this,'home')">
+          <input type="checkbox" value="home">
+          <span class="check-box"></span>
+          <span class="check-label">🏠 ホーム（お店フィード）</span>
+        </label>
+        <label class="check-item" onclick="toggleCheck(this,'search')">
+          <input type="checkbox" value="search">
+          <span class="check-box"></span>
+          <span class="check-label">🔍 さがす</span>
+        </label>
+        <label class="check-item" onclick="toggleCheck(this,'map')">
+          <input type="checkbox" value="map">
+          <span class="check-box"></span>
+          <span class="check-label">🗺️ マップ</span>
+        </label>
+        <label class="check-item" onclick="toggleCheck(this,'mate')">
+          <input type="checkbox" value="mate">
+          <span class="check-box"></span>
+          <span class="check-label">👫 メイト（フレンド）</span>
+        </label>
+        <label class="check-item" onclick="toggleCheck(this,'owner')">
+          <input type="checkbox" value="owner">
+          <span class="check-box"></span>
+          <span class="check-label">🏪 お店の方（オーナー）</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q4</span>
+        <span class="q-text">使いにくかったところはありましたか？</span>
+      </div>
+      <textarea class="q-textarea" id="pain" placeholder="例：マップが重い、ログインがわかりにくい…など"></textarea>
+    </div>
+
+    <!-- Q5 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q5</span>
+        <span class="q-text">あったら嬉しい機能や改善してほしい点は？</span>
+      </div>
+      <textarea class="q-textarea" id="wishlist" placeholder="例：クーポン機能、混雑予測、お気に入り保存…など"></textarea>
+    </div>
+
+    <!-- Q6 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q6</span>
+        <span class="q-text">友達にワセ飯を勧めたいと思いますか？</span>
+      </div>
+      <div class="recommend-group">
+        <button class="recommend-btn" onclick="setRecommend('yes',this)">
+          <span class="rec-emoji">🙌</span>ぜひ勧める
+        </button>
+        <button class="recommend-btn" onclick="setRecommend('maybe',this)">
+          <span class="rec-emoji">🤔</span>まあ勧める
+        </button>
+        <button class="recommend-btn" onclick="setRecommend('no',this)">
+          <span class="rec-emoji">😐</span>勧めない
+        </button>
+      </div>
+    </div>
+
+    <!-- Q7 -->
+    <div class="q-card">
+      <div class="q-label">
+        <span class="q-num">Q7</span>
+        <span class="q-text">その他、自由にコメントをどうぞ</span>
+      </div>
+      <textarea class="q-textarea" id="comment" placeholder="なんでもどうぞ！"></textarea>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitForm()">回答を送信する</button>
+    <div class="error-msg" id="errorMsg">送信に失敗しました。もう一度お試しください。</div>
+
+  </div>
+
+  <!-- Thank you -->
+  <div class="container" id="thankYou" style="display:none;">
+    <div class="thankyou" style="display:block;">
+      <div class="thankyou-emoji">🎉</div>
+      <h2>ありがとうございました！</h2>
+      <p>あなたの意見が早稲田生の食事を<br>もっと豊かにします。</p>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBb0DmKZ7HJHfCjTajKyAEhJxcqMMixMxU",
+      authDomain: "waseda-meshi.firebaseapp.com",
+      projectId: "waseda-meshi",
+      storageBucket: "waseda-meshi.appspot.com",
+      messagingSenderId: "824897605083",
+      appId: "1:824897605083:web:6462bd7e6cf38e33bbeee3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window._db = db;
+    window._collection = collection;
+    window._addDoc = addDoc;
+    window._serverTimestamp = serverTimestamp;
+  </script>
+
+  <script>
+    // State
+    const answers = {
+      q1: 0, q2: 0,
+      features: [],
+      recommend: ''
+    };
+
+    // Star rating
+    function setStar(q, v) {
+      answers[q] = v;
+      document.querySelectorAll(`#stars-${q} .star-btn`).forEach((btn, i) => {
+        btn.classList.toggle('active', i < v);
+      });
+    }
+
+    // Checkbox toggle
+    function toggleCheck(el, val) {
+      el.classList.toggle('checked');
+      const idx = answers.features.indexOf(val);
+      if (idx === -1) answers.features.push(val);
+      else answers.features.splice(idx, 1);
+    }
+
+    // Recommend
+    function setRecommend(val, btn) {
+      answers.recommend = val;
+      document.querySelectorAll('.recommend-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
+
+    // Submit
+    async function submitForm() {
+      const btn = document.getElementById('submitBtn');
+      const errMsg = document.getElementById('errorMsg');
+      errMsg.style.display = 'none';
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>送信中…';
+
+      const data = {
+        satisfaction: answers.q1 || null,
+        usability: answers.q2 || null,
+        features: answers.features,
+        pain: document.getElementById('pain').value.trim(),
+        wishlist: document.getElementById('wishlist').value.trim(),
+        recommend: answers.recommend || null,
+        comment: document.getElementById('comment').value.trim(),
+        timestamp: window._serverTimestamp(),
+        ua: navigator.userAgent
+      };
+
+      try {
+        await window._addDoc(window._collection(window._db, 'feedback'), data);
+        document.getElementById('formContainer').style.display = 'none';
+        document.getElementById('thankYou').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        console.error(e);
+        errMsg.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '回答を送信する';
+      }
+    }
+
+    window.setStar = setStar;
+    window.toggleCheck = toggleCheck;
+    window.setRecommend = setRecommend;
+    window.submitForm = submitForm;
+  </script>
+</body>
+</html>

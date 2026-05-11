@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ワセ飯 フィードバック結果</title>
+  <style>
+    :root {
+      --primary: #8C1515;
+      --primary-light: #b52020;
+      --primary-bg: #fdf5f5;
+      --surface: #ffffff;
+      --bg: #f4f6f9;
+      --border: #e5e9ef;
+      --text: #1a1a1a;
+      --text-sub: #6b7280;
+      --radius: 14px;
+      --shadow: 0 1px 8px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'ヒラギノ角ゴシック', 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      background: var(--primary);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .logo-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .header-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+    }
+    .header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .badge {
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid #e8c7c7;
+    }
+    .last-updated {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .refresh-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .refresh-btn:hover { background: var(--primary-light); }
+    .refresh-icon {
+      font-size: 14px;
+      display: inline-block;
+      transition: transform 0.4s;
+    }
+    .refresh-btn.spinning .refresh-icon { animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Main layout */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 32px 60px;
+    }
+
+    /* Summary cards */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      box-shadow: var(--shadow);
+      border-top: 3px solid var(--primary);
+    }
+    .summary-card .s-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    .summary-card .s-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .summary-card .s-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 4px;
+    }
+    .star-display {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .star-display .stars { font-size: 16px; color: #f5a623; letter-spacing: 1px; }
+    .star-display .star-num { font-size: 13px; color: var(--text-sub); }
+
+    /* Section */
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 2px;
+      display: block;
+    }
+
+    /* Charts grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .chart-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 18px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Bar chart */
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .bar-label {
+      font-size: 12px;
+      color: var(--text-sub);
+      width: 80px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .bar-track {
+      flex: 1;
+      height: 22px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 4px;
+      transition: width 0.6s ease;
+      min-width: 2px;
+    }
+    .bar-fill.accent { background: #c0392b; }
+    .bar-fill.mid { background: #e8a0a0; }
+    .bar-count {
+      font-size: 12px;
+      color: var(--text-sub);
+      width: 30px;
+      flex-shrink: 0;
+    }
+
+    /* Donut-style recommend bar */
+    .recommend-bars { margin-top: 8px; }
+    .rec-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .rec-label {
+      font-size: 13px;
+      width: 90px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rec-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .rec-track {
+      flex: 1;
+      height: 28px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .rec-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.6s ease;
+    }
+    .rec-pct {
+      font-size: 13px;
+      font-weight: 600;
+      width: 44px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .color-yes { background: #27ae60; }
+    .color-maybe { background: #f39c12; }
+    .color-no { background: #95a5a6; }
+
+    /* Stacked bar summary */
+    .stacked-bar {
+      height: 28px;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      margin-bottom: 12px;
+    }
+    .stacked-seg { transition: width 0.6s ease; }
+
+    /* Free text section */
+    .freetext-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    .freetext-col { }
+    .freetext-col-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .freetext-items { display: flex; flex-direction: column; gap: 10px; }
+    .freetext-card {
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      border-left: 3px solid #e8c7c7;
+    }
+    .freetext-body {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.65;
+      word-break: break-all;
+    }
+    .freetext-time {
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 8px;
+    }
+    .no-data {
+      font-size: 13px;
+      color: #ccc;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* Loading overlay */
+    .loading {
+      text-align: center;
+      padding: 80px 0;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #eee;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .summary-row { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .freetext-grid { grid-template-columns: 1fr; }
+      .main { padding: 20px 16px 40px; }
+      .header { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">
+        <div class="logo-mark">🍜</div>
+        <span class="logo-name">ワセ飯</span>
+      </div>
+      <div class="header-divider"></div>
+      <span class="header-title">フィードバック結果</span>
+    </div>
+    <div class="header-right">
+      <span class="badge" id="totalBadge">— 件</span>
+      <span class="last-updated" id="lastUpdated">読み込み中…</span>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+        <span class="refresh-icon">↻</span> 更新
+      </button>
+    </div>
+  </header>
+
+  <main class="main" id="mainContent">
+    <div class="loading" id="loadingState">
+      <div class="loading-spinner"></div>
+      データを読み込み中…
+    </div>
+  </main>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBb0DmKZ7HJHfCjTajKyAEhJxcqMMixMxU",
+      authDomain: "waseda-meshi.firebaseapp.com",
+      projectId: "waseda-meshi",
+      storageBucket: "waseda-meshi.appspot.com",
+      messagingSenderId: "824897605083",
+      appId: "1:824897605083:web:6462bd7e6cf38e33bbeee3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let unsubscribe = null;
+
+    function formatDate(ts) {
+      if (!ts) return '';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderStars(val) {
+      const filled = Math.round(val);
+      let s = '';
+      for (let i = 1; i <= 5; i++) s += i <= filled ? '★' : '☆';
+      return s;
+    }
+
+    function pct(n, total) {
+      if (!total) return 0;
+      return Math.round(n / total * 100);
+    }
+
+    function render(docs) {
+      const total = docs.length;
+
+      // Compute stats
+      let sumSat = 0, cntSat = 0;
+      let sumUse = 0, cntUse = 0;
+      const satDist = {1:0,2:0,3:0,4:0,5:0};
+      const useDist = {1:0,2:0,3:0,4:0,5:0};
+      const featCount = { home: 0, search: 0, map: 0, mate: 0, owner: 0 };
+      const recCount = { yes: 0, maybe: 0, no: 0 };
+      const pains = [], wishlists = [], comments = [];
+
+      docs.forEach(d => {
+        if (d.satisfaction) { sumSat += d.satisfaction; cntSat++; satDist[d.satisfaction]++; }
+        if (d.usability)    { sumUse += d.usability;    cntUse++; useDist[d.usability]++; }
+        (d.features || []).forEach(f => { if (featCount[f] !== undefined) featCount[f]++; });
+        if (d.recommend && recCount[d.recommend] !== undefined) recCount[d.recommend]++;
+        if (d.pain)     pains.push({ text: d.pain, ts: d.timestamp });
+        if (d.wishlist) wishlists.push({ text: d.wishlist, ts: d.timestamp });
+        if (d.comment)  comments.push({ text: d.comment, ts: d.timestamp });
+      });
+
+      const avgSat = cntSat ? (sumSat / cntSat).toFixed(1) : '—';
+      const avgUse = cntUse ? (sumUse / cntUse).toFixed(1) : '—';
+      const recRate = total ? pct(recCount.yes + recCount.maybe, total) : '—';
+
+      // Sort freetext newest first
+      const sortDesc = arr => arr.sort((a, b) => {
+        const ta = a.ts ? (a.ts.toDate ? a.ts.toDate() : new Date(a.ts)) : new Date(0);
+        const tb = b.ts ? (b.ts.toDate ? b.ts.toDate() : new Date(b.ts)) : new Date(0);
+        return tb - ta;
+      });
+      sortDesc(pains); sortDesc(wishlists); sortDesc(comments);
+
+      // Feature labels
+      const featLabels = { home: '🏠 ホーム', search: '🔍 さがす', map: '🗺️ マップ', mate: '👫 メイト', owner: '🏪 オーナー' };
+      const maxFeat = Math.max(1, ...Object.values(featCount));
+
+      const html = `
+        <div class="summary-row">
+          <div class="summary-card">
+            <div class="s-label">総回答数</div>
+            <div class="s-value">${total}</div>
+            <div class="s-sub">件のフィードバック</div>
+          </div>
+          <div class="summary-card">
+            <div class="s-label">満足度平均</div>
+            <div class="s-value">${avgSat}<span style="font-size:16px;font-weight:400;"> / 5</span></div>
+            <div class="star-display"><span class="stars">${avgSat !== '—' ? renderStars(Number(avgSat)) : '☆☆☆☆☆'}</span><span class="star-num">${avgSat}</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="s-label">使いやすさ平均</div>
+            <div class="s-value">${avgUse}<span style="font-size:16px;font-weight:400;"> / 5</span></div>
+            <div class="star-display"><span class="stars">${avgUse !== '—' ? renderStars(Number(avgUse)) : '☆☆☆☆☆'}</span><span class="star-num">${avgUse}</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="s-label">推薦率</div>
+            <div class="s-value">${recRate !== '—' ? recRate + '%' : '—'}</div>
+            <div class="s-sub">ぜひ＋まあ勧める</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <!-- 満足度分布 -->
+          <div class="chart-card">
+            <div class="chart-title">満足度分布</div>
+            ${[5,4,3,2,1].map(s => `
+              <div class="bar-row">
+                <div class="bar-label">${'★'.repeat(s)}</div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:${pct(satDist[s], cntSat || 1)}%"></div>
+                </div>
+                <div class="bar-count">${satDist[s]}件</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 使いやすさ分布 -->
+          <div class="chart-card">
+            <div class="chart-title">使いやすさ分布</div>
+            ${[5,4,3,2,1].map(s => `
+              <div class="bar-row">
+                <div class="bar-label">${'★'.repeat(s)}</div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:${pct(useDist[s], cntUse || 1)}%"></div>
+                </div>
+                <div class="bar-count">${useDist[s]}件</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 機能TOP -->
+          <div class="chart-card">
+            <div class="chart-title">使われた機能 TOP</div>
+            ${Object.entries(featCount)
+              .sort((a,b) => b[1] - a[1])
+              .map(([k, v]) => `
+                <div class="bar-row">
+                  <div class="bar-label" style="font-size:11px;">${featLabels[k]}</div>
+                  <div class="bar-track">
+                    <div class="bar-fill accent" style="width:${pct(v, maxFeat)}%"></div>
+                  </div>
+                  <div class="bar-count">${v}件</div>
+                </div>
+              `).join('')}
+          </div>
+
+          <!-- 推薦 -->
+          <div class="chart-card">
+            <div class="chart-title">友達への推薦</div>
+            <div class="stacked-bar">
+              <div class="stacked-seg color-yes" style="width:${pct(recCount.yes, total || 1)}%"></div>
+              <div class="stacked-seg color-maybe" style="width:${pct(recCount.maybe, total || 1)}%"></div>
+              <div class="stacked-seg color-no" style="width:${pct(recCount.no, total || 1)}%"></div>
+            </div>
+            <div class="recommend-bars">
+              ${[
+                { key: 'yes',   label: 'ぜひ勧める', emoji: '🙌', cls: 'color-yes' },
+                { key: 'maybe', label: 'まあ勧める', emoji: '🤔', cls: 'color-maybe' },
+                { key: 'no',    label: '勧めない',   emoji: '😐', cls: 'color-no' },
+              ].map(r => `
+                <div class="rec-bar-row">
+                  <div class="rec-label"><span class="rec-dot ${r.cls}"></span>${r.emoji} ${r.label}</div>
+                  <div class="rec-track">
+                    <div class="rec-fill ${r.cls}" style="width:${pct(recCount[r.key], total || 1)}%"></div>
+                  </div>
+                  <div class="rec-pct">${pct(recCount[r.key], total || 1)}%</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- 自由記述 -->
+        <div class="section">
+          <div class="section-title">自由記述</div>
+          <div class="freetext-grid">
+            ${[
+              { title: 'Q4 — 使いにくかった点', items: pains },
+              { title: 'Q5 — 欲しい機能・改善点', items: wishlists },
+              { title: 'Q7 — その他コメント', items: comments },
+            ].map(col => `
+              <div class="freetext-col">
+                <div class="freetext-col-title">${col.title}</div>
+                <div class="freetext-items">
+                  ${col.items.length === 0
+                    ? '<div class="no-data">回答なし</div>'
+                    : col.items.map(item => `
+                      <div class="freetext-card">
+                        <div class="freetext-body">${escHtml(item.text)}</div>
+                        <div class="freetext-time">${formatDate(item.ts)}</div>
+                      </div>
+                    `).join('')
+                  }
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('mainContent').innerHTML = html;
+      document.getElementById('totalBadge').textContent = total + ' 件';
+      document.getElementById('lastUpdated').textContent = '最終更新: ' + new Date().toLocaleTimeString('ja-JP');
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function subscribe() {
+      if (unsubscribe) unsubscribe();
+      const q = query(collection(db, 'feedback'), orderBy('timestamp', 'desc'));
+      unsubscribe = onSnapshot(q, snap => {
+        const docs = snap.docs.map(d => d.data());
+        render(docs);
+      }, err => {
+        console.error(err);
+        document.getElementById('mainContent').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
+      });
+    }
+
+    window.refreshData = function() {
+      const btn = document.getElementById('refreshBtn');
+      btn.classList.add('spinning');
+      subscribe();
+      setTimeout(() => btn.classList.remove('spinning'), 800);
+    };
+
+    subscribe();
+  </script>
+</body>
+</html>
