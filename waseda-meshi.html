@@ -1739,8 +1739,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .bereal-shutter {
   position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
-  width:72px; height:72px; border-radius:50%;
-  background:#fff; border:4px solid rgba(255,255,255,0.5);
+  width:88px; height:88px; border-radius:50%;
+  background:#fff; border:5px solid rgba(255,255,255,0.5);
   cursor:pointer; z-index:2;
 }
 .bereal-close {
@@ -1752,12 +1752,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 /* BeRealボタン（マップ右下） */
 .bereal-fab {
-  position:absolute; bottom:142px; right:14px; z-index:1000;
-  width:44px; height:44px; border-radius:50%;
-  background:#fff; border:none;
-  box-shadow:0 2px 10px rgba(0,0,0,0.25);
-  cursor:pointer; display:flex; align-items:center; justify-content:center;
-  font-size:22px;
+  position:absolute;
+  bottom: 110px;
+  right: 16px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8C1515, #B22222);
+  color: #fff;
+  font-size: 34px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 20px rgba(140,21,21,0.5);
+  z-index: 500;
+  animation: pinPulse 2s ease-in-out infinite;
 }
 
 /* ── ピンアニメーション ── */
@@ -2037,7 +2046,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   </div>
   <!-- 現在地ボタン -->
   <button id="mapLocateBtn" onclick="locateUser()"
-    style="position:absolute;bottom:90px;right:14px;z-index:1000;width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 10px rgba(0,0,0,0.25);cursor:pointer;display:flex;align-items:center;justify-content:center">
+    style="position:absolute;bottom:200px;right:24px;z-index:1000;width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 10px rgba(0,0,0,0.25);cursor:pointer;display:flex;align-items:center;justify-content:center">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8C1515" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
     </svg>
@@ -2050,7 +2059,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 <!-- BeReal カメラオーバーレイ -->
 <div id="beRealOverlay">
   <video id="beRealVideo" autoplay playsinline muted></video>
-  <video id="beRealFrontVideo" autoplay playsinline muted></video>
+  <div id="beRealLabel" style="
+    position:absolute; top:70px; left:0; right:0;
+    text-align:center; color:#fff; font-size:18px;
+    font-weight:800; text-shadow:0 2px 8px rgba(0,0,0,0.5);
+    z-index:3;
+  "></div>
   <button class="bereal-close" onclick="closeBeRealCamera()">✕</button>
   <button class="bereal-shutter" id="beRealShutter" onclick="captureBeReal()"></button>
   <canvas id="beRealCanvas" style="display:none"></canvas>
@@ -4273,117 +4287,110 @@ function closePhotoViewer(){
   document.getElementById('photoViewerImg').src = '';
 }
 
-// ─── BeReal カメラ ────────────────────────────────────────────
-let _berealBackStream  = null;
-let _berealFrontStream = null;
-let _berealStoreId     = null;
+// ─── BeReal カメラ（連続撮影フロー） ─────────────────────────
+let _bereal = { phase:'back', backImg:null, frontImg:null, storeId:null, stream:null };
+
+async function _findNearestStoreId(){
+  return new Promise((resolve)=>{
+    if(!navigator.geolocation){ resolve(STORES[0]?.id); return; }
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const { latitude:lat, longitude:lng } = pos.coords;
+      let best=null, bestD=Infinity;
+      STORES.forEach(s=>{
+        if(s.lat && s.lng){
+          const d = distKm(lat, lng, s.lat, s.lng);
+          if(d < bestD){ bestD=d; best=s; }
+        }
+      });
+      resolve(best?.id || STORES[0]?.id);
+    }, ()=>resolve(STORES[0]?.id), { timeout:5000, enableHighAccuracy:true });
+  });
+}
+
+async function _startBeRealStream(facing){
+  if(_bereal.stream) _bereal.stream.getTracks().forEach(t=>t.stop());
+  _bereal.stream = await navigator.mediaDevices.getUserMedia({
+    video:{ facingMode:{ ideal:facing }, width:{ ideal:1280 }, height:{ ideal:1280 } },
+    audio:false
+  });
+  const v = document.getElementById('beRealVideo');
+  v.srcObject = _bereal.stream;
+  await v.play();
+}
 
 async function openBeRealCamera(storeId){
-  _berealStoreId = storeId;
-  const overlay = document.getElementById('beRealOverlay');
-  overlay.style.display = 'flex';
+  if(!storeId) storeId = await _findNearestStoreId();
+  _bereal = { phase:'back', backImg:null, frontImg:null, storeId, stream:null };
+  document.getElementById('beRealOverlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-
-  const videoBack  = document.getElementById('beRealVideo');
-  const videoFront = document.getElementById('beRealFrontVideo');
-
   try {
-    _berealBackStream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } },
-      audio:false
-    });
-    videoBack.srcObject = _berealBackStream;
+    await _startBeRealStream('environment');
+    document.getElementById('beRealLabel').textContent = '🍜 料理を撮ろう';
   } catch(e){
-    console.warn('背面カメラ取得失敗:', e);
+    console.warn('カメラ取得失敗:', e);
     showToast('カメラのアクセスを許可してください');
-    closeBeRealCamera(); return;
-  }
-
-  try {
-    _berealFrontStream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:'user', width:{ ideal:320 }, height:{ ideal:320 } },
-      audio:false
-    });
-    videoFront.srcObject = _berealFrontStream;
-  } catch(e){
-    // 前カメラが使えなくても後ろだけで続行
-    console.warn('前カメラ取得失敗（続行）:', e);
+    closeBeRealCamera();
   }
 }
 
-function captureBeReal(){
-  const videoBack  = document.getElementById('beRealVideo');
-  const videoFront = document.getElementById('beRealFrontVideo');
-  const canvas     = document.getElementById('beRealCanvas');
+async function captureBeReal(){
+  const v = document.getElementById('beRealVideo');
+  const cv = document.createElement('canvas');
+  cv.width = 1080; cv.height = 1080;
+  const ctx = cv.getContext('2d');
+  const vw = v.videoWidth, vh = v.videoHeight;
+  if(!vw || !vh){ showToast('カメラ準備中...'); return; }
+  const side = Math.min(vw, vh);
+  const sx = (vw - side)/2, sy = (vh - side)/2;
+  ctx.drawImage(v, sx, sy, side, side, 0, 0, 1080, 1080);
 
-  const W = 1080, H = 1080;
-  canvas.width  = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // メイン映像を全面に描画
-  ctx.drawImage(videoBack, 0, 0, W, H);
-
-  // 前カメラ小窓（右上 1/4 サイズ）
-  if(_berealFrontStream && videoFront.srcObject){
-    const sw = Math.floor(W * 0.28), sh = Math.floor(H * 0.28);
-    const sx = W - sw - 20, sy = 20;
-    const r  = 16;
-
-    // 丸角クリップ（roundRect対応有無に関わらず動くポリフィル）
-    function roundedRect(cx, cy, cw, ch, cr){
-      ctx.beginPath();
-      ctx.moveTo(cx + cr, cy);
-      ctx.lineTo(cx + cw - cr, cy);
-      ctx.quadraticCurveTo(cx + cw, cy, cx + cw, cy + cr);
-      ctx.lineTo(cx + cw, cy + ch - cr);
-      ctx.quadraticCurveTo(cx + cw, cy + ch, cx + cw - cr, cy + ch);
-      ctx.lineTo(cx + cr, cy + ch);
-      ctx.quadraticCurveTo(cx, cy + ch, cx, cy + ch - cr);
-      ctx.lineTo(cx, cy + cr);
-      ctx.quadraticCurveTo(cx, cy, cx + cr, cy);
-      ctx.closePath();
+  if(_bereal.phase === 'back'){
+    _bereal.backImg = cv;
+    _bereal.phase = 'front';
+    try {
+      await _startBeRealStream('user');
+      document.getElementById('beRealLabel').textContent = '😋 リアクションを撮ろう';
+    } catch(e){
+      console.warn('前カメラ取得失敗:', e);
+      showToast('前カメラを起動できませんでした');
+      closeBeRealCamera();
     }
+  } else {
+    _bereal.frontImg = cv;
+    // 合成: 1080x2160（1:1 縦分割）
+    const final = document.createElement('canvas');
+    final.width = 1080; final.height = 2160;
+    const fctx = final.getContext('2d');
+    fctx.drawImage(_bereal.backImg, 0, 0, 1080, 1080);
+    fctx.drawImage(_bereal.frontImg, 0, 1080, 1080, 1080);
+    fctx.fillStyle = '#fff';
+    fctx.fillRect(0, 1075, 1080, 10);
 
-    ctx.save();
-    roundedRect(sx, sy, sw, sh, r);
-    ctx.clip();
-    ctx.drawImage(videoFront, sx, sy, sw, sh);
-    ctx.restore();
-    // 枠線
-    ctx.save();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth   = 5;
-    roundedRect(sx, sy, sw, sh, r);
-    ctx.stroke();
-    ctx.restore();
+    const storeId = _bereal.storeId;
+    final.toBlob(async (blob)=>{
+      closeBeRealCamera();
+      if(!blob){ showToast('キャプチャに失敗しました'); return; }
+      const file = new File([blob], `bereal_${Date.now()}.jpg`, { type:'image/jpeg' });
+      showToast('📤 アップロード中...');
+      if(storeId){
+        await uploadStorePhoto(storeId, file);
+      } else {
+        showToast('店舗が見つかりませんでした');
+      }
+    }, 'image/jpeg', 0.9);
   }
-
-  // Blob化 → アップロード
-  canvas.toBlob(async blob => {
-    if(!blob){ showToast('キャプチャに失敗しました'); return; }
-    const file = new File([blob], `bereal_${Date.now()}.jpg`, { type:'image/jpeg' });
-    closeBeRealCamera();
-
-    if(_berealStoreId){
-      await uploadStorePhoto(_berealStoreId, file);
-    } else {
-      // 店舗未選択 → ファイル入力経由（既存フロー）
-      _pendingUploadStoreId = null;
-      showToast('📸 撮影しました（店舗を選んで投稿してください）');
-    }
-  }, 'image/jpeg', 0.88);
 }
 
 function closeBeRealCamera(){
   const overlay = document.getElementById('beRealOverlay');
   overlay.style.display = 'none';
   document.body.style.overflow = '';
-  [_berealBackStream, _berealFrontStream].forEach(stream=>{
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-  });
-  _berealBackStream  = null;
-  _berealFrontStream = null;
+  if(_bereal.stream){
+    _bereal.stream.getTracks().forEach(t=>t.stop());
+  }
+  _bereal = { phase:'back', backImg:null, frontImg:null, storeId:null, stream:null };
+  const label = document.getElementById('beRealLabel');
+  if(label) label.textContent = '';
 }
 
 // ─── 写真↔混雑率 交互表示（4秒ごと） ────────────────────────
