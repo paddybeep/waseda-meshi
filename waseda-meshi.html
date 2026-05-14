@@ -21,6 +21,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
@@ -1662,6 +1663,68 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 .store-option .so-name { font-size: 14px; font-weight: 700; }
 .store-option .so-genre { font-size: 12px; color: var(--muted); }
 .store-option .so-arrow { color: var(--muted); font-size: 18px; }
+
+/* ── PHOTO VIEWER ── */
+.photo-viewer-overlay {
+  position: fixed; inset: 0; z-index: 8000;
+  background: rgba(0,0,0,0.95);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.photo-viewer-overlay.open { opacity: 1; pointer-events: auto; }
+.photo-viewer-img {
+  max-width: 100%; max-height: 78vh;
+  border-radius: 12px;
+  object-fit: contain;
+  display: block;
+}
+.photo-viewer-meta {
+  margin-top: 14px; color: #fff; text-align: center;
+}
+.photo-viewer-meta .pv-store { font-size: 16px; font-weight: 700; }
+.photo-viewer-meta .pv-date { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+.photo-viewer-close {
+  position: absolute; top: calc(env(safe-area-inset-top,0px) + 16px); right: 18px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.18); border: none;
+  color: #fff; font-size: 20px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 写真ピンマーカー上の📷バッジ */
+.map-photo-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: #fff; border-radius: 50%;
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+.map-marker-wrap { position: relative; display: inline-block; }
+
+/* 写真投稿ボタン */
+.photo-upload-btn {
+  width: 100%; padding: 13px;
+  background: var(--bg); border: 2px dashed var(--border);
+  border-radius: 14px; font-size: 15px; font-weight: 700;
+  color: var(--sub); cursor: pointer; margin-bottom: 16px;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.photo-upload-btn:active { border-color: var(--brand); color: var(--brand); }
+
+/* 投稿済み写真サムネイル */
+.store-photos-row {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin-bottom: 16px;
+}
+.store-photos-row::-webkit-scrollbar { display: none; }
+.store-photo-thumb {
+  width: 80px; height: 80px; border-radius: 10px;
+  object-fit: cover; flex-shrink: 0; cursor: pointer;
+  border: 2px solid var(--border);
+}
 </style>
 </head>
 <body>
@@ -1939,6 +2002,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   <div class="sheet" id="detailSheet"></div>
 </div>
 
+<!-- PHOTO VIEWER OVERLAY -->
+<div class="photo-viewer-overlay" id="photoViewerOverlay">
+  <button class="photo-viewer-close" onclick="closePhotoViewer()">✕</button>
+  <img class="photo-viewer-img" id="photoViewerImg" src="" alt="">
+  <div class="photo-viewer-meta">
+    <div class="pv-store" id="photoViewerStore"></div>
+    <div class="pv-date" id="photoViewerDate"></div>
+  </div>
+</div>
+
+<!-- hidden file input for photo upload -->
+<input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoFile(event)">
+
 <!-- LISTING SHEET -->
 <div class="sheet-overlay" id="listingOverlay" onclick="onBgClick(event,'listingOverlay')">
   <div class="sheet" id="listingSheet"></div>
@@ -2010,6 +2086,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const storage = firebase.storage();
 const analytics = firebase.analytics();
 const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
@@ -3994,9 +4071,107 @@ function updateMapMarkers(){
   STORES.forEach(s=>{
     const m=mMarkers[s.id];
     if(!m) return;
-    m.setIcon(L.divIcon({html:markerSVG(cong[s.id]),iconSize:[36,44],iconAnchor:[18,44],popupAnchor:[0,-44],className:""}));
+    const hasPh = storePhotoMap[s.id] && storePhotoMap[s.id].length > 0;
+    const iconHtml = hasPh
+      ? `<div class="map-marker-wrap">${markerSVG(cong[s.id])}<div class="map-photo-badge">📷</div></div>`
+      : markerSVG(cong[s.id]);
+    m.setIcon(L.divIcon({html:iconHtml,iconSize:[36,44],iconAnchor:[18,44],popupAnchor:[0,-44],className:""}));
     m.setPopupContent(popupHTML(s));
   });
+}
+
+// ─── PHOTO MAP ───────────────────────────────────────────────
+// storePhotoMap: { storeId: [ { photoURL, storeName, timestamp, userId } ] }
+let storePhotoMap = {};
+let _photoUnsub = null;
+let _pendingUploadStoreId = null;
+
+// Firestoreのphotosコレクションをリアルタイム購読
+function subscribePhotos(){
+  if(_photoUnsub) return; // already subscribed
+  _photoUnsub = db.collection('photos').onSnapshot(snap=>{
+    storePhotoMap = {};
+    snap.forEach(doc=>{
+      const d = doc.data();
+      if(!d.storeId) return;
+      if(!storePhotoMap[d.storeId]) storePhotoMap[d.storeId] = [];
+      storePhotoMap[d.storeId].push({ id: doc.id, ...d });
+    });
+    updateMapMarkers();
+  }, err=>{ console.warn('photos subscribe error', err); });
+}
+
+// 写真投稿ボタンタップ
+function triggerPhotoUpload(storeId){
+  _pendingUploadStoreId = storeId;
+  document.getElementById('photoFileInput').value = '';
+  document.getElementById('photoFileInput').click();
+}
+
+// ファイル選択後の処理
+function handlePhotoFile(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file || !_pendingUploadStoreId) return;
+  uploadStorePhoto(_pendingUploadStoreId, file);
+}
+
+async function uploadStorePhoto(storeId, file){
+  const s = STORES.find(x=>x.id===storeId);
+  if(!s){ showToast('店舗が見つかりません'); return; }
+  showToast('📷 アップロード中...');
+  try {
+    const ts = Date.now();
+    const path = `photos/${storeId}/${ts}_${myCode}`;
+    const ref = storage.ref(path);
+    await ref.put(file);
+    const photoURL = await ref.getDownloadURL();
+    await db.collection('photos').add({
+      storeId: storeId,
+      storeName: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      photoURL: photoURL,
+      userId: myCode,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('写真を投稿しました 📷');
+    loadStorePhotos(storeId);
+  } catch(err){
+    console.error('upload error', err);
+    showToast('アップロードに失敗しました。もう一度お試しください');
+  }
+}
+
+// 詳細シート内の写真サムネイル表示
+function loadStorePhotos(storeId){
+  const row = document.getElementById('storePhotosRow');
+  if(!row) return;
+  const photos = storePhotoMap[storeId] || [];
+  if(photos.length === 0){
+    row.innerHTML = '<span style="font-size:12px;color:var(--muted);padding:4px 0">まだ写真がありません</span>';
+    return;
+  }
+  // 新しい順に最大20枚表示
+  const sorted = [...photos].sort((a,b)=>{ const ta=a.timestamp?.toMillis?.()||0; const tb=b.timestamp?.toMillis?.()||0; return tb-ta; });
+  row.innerHTML = sorted.slice(0,20).map((ph,i)=>`
+    <img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
+      onclick="openPhotoViewer('${ph.photoURL}','${ph.storeName||''}',${ph.timestamp?.toMillis?.()||0})"
+      alt="写真${i+1}">
+  `).join('');
+}
+
+// フォトビューアーを開く
+function openPhotoViewer(url, storeName, tsMs){
+  document.getElementById('photoViewerImg').src = url;
+  document.getElementById('photoViewerStore').textContent = storeName;
+  const dateStr = tsMs ? new Date(tsMs).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '';
+  document.getElementById('photoViewerDate').textContent = dateStr;
+  document.getElementById('photoViewerOverlay').classList.add('open');
+}
+
+function closePhotoViewer(){
+  document.getElementById('photoViewerOverlay').classList.remove('open');
+  document.getElementById('photoViewerImg').src = '';
 }
 
 // ─── TAB SWITCH ──────────────────────────────────────────────
@@ -4133,6 +4308,11 @@ function openDetail(id){
       <!-- バイト求人 -->
       ${jobListingsHTML(id)}
 
+      <!-- 写真投稿・閲覧 -->
+      <div class="section-divider">📷 みんなの写真</div>
+      <div id="storePhotosRow" class="store-photos-row" style="min-height:20px"></div>
+      <button class="photo-upload-btn" onclick="triggerPhotoUpload(${id})">📷 写真を投稿する</button>
+
       <!-- 友達限定コメント -->
       <div class="section-divider">💬 友達コメント <span style="font-size:11px;color:var(--muted)">（友達にだけ見える）</span></div>
       <div id="commentSection" style="min-height:40px;margin-bottom:12px">
@@ -4151,6 +4331,7 @@ function openDetail(id){
   `;
   refreshCongSection(id);
   renderCommentSection(id);
+  loadStorePhotos(id);
   document.getElementById("detailOverlay").classList.add("open");
   document.body.style.overflow="hidden";
 }
@@ -4257,7 +4438,7 @@ function submitListing(){ closeSheets(); showToast("📩 申込を受け付け�
 function closeSheets(){
   ["detailOverlay","listingOverlay","moodSettingsOverlay","settingsOverlay",
    "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay",
-   "qrOverlay","adInquiryOverlay"]
+   "qrOverlay","adInquiryOverlay","photoViewerOverlay"]
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove("open"); });
   document.body.style.overflow="";
   curDetail=null;
@@ -6881,6 +7062,7 @@ renderFeed();
 renderSituationGrid();
 renderPersonRow();
 renderGenreGrid();
+subscribePhotos();
 
 // ── QRチェックイン処理（URLパラメータ） ──────────────────────
 (function handleCheckinParam() {
