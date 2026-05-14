@@ -1725,6 +1725,70 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   object-fit: cover; flex-shrink: 0; cursor: pointer;
   border: 2px solid var(--border);
 }
+
+/* ── BeReal カメラUI ── */
+#beRealOverlay {
+  position:fixed; inset:0; background:#000; z-index:9999;
+  display:none; flex-direction:column;
+}
+#beRealVideo { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+#beRealFrontVideo {
+  position:absolute; top:16px; right:16px;
+  width:90px; height:90px; border-radius:12px;
+  object-fit:cover; border:2.5px solid #fff; z-index:2;
+}
+.bereal-shutter {
+  position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
+  width:72px; height:72px; border-radius:50%;
+  background:#fff; border:4px solid rgba(255,255,255,0.5);
+  cursor:pointer; z-index:2;
+}
+.bereal-close {
+  position:absolute; top:16px; left:16px;
+  color:#fff; font-size:28px; cursor:pointer; z-index:2;
+  background:rgba(0,0,0,0.4); border-radius:50%;
+  width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+}
+
+/* BeRealボタン（マップ右下） */
+.bereal-fab {
+  position:absolute; bottom:142px; right:14px; z-index:1000;
+  width:44px; height:44px; border-radius:50%;
+  background:#fff; border:none;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:22px;
+}
+
+/* ── ピンアニメーション ── */
+@keyframes pinPulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(140,21,21,0.6); }
+  50%  { transform: scale(1.12); box-shadow: 0 0 0 10px rgba(140,21,21,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(140,21,21,0); }
+}
+@keyframes pinBounce {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.marker-bounce {
+  animation: pinBounce 2.4s ease-in-out infinite;
+}
+.marker-pulse {
+  animation: pinPulse 1.8s ease-in-out infinite;
+}
+
+/* ピン写真サムネイル */
+.pin-photo-thumb {
+  width:44px; height:44px; border-radius:50%;
+  object-fit:cover; border:2.5px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,0.35);
+  opacity:0; transition:opacity 0.3s;
+}
+.pin-photo-thumb.visible { opacity:1; }
+.pin-cong-circle {
+  opacity:1; transition:opacity 0.3s;
+}
+.pin-cong-circle.hidden { opacity:0; }
 </style>
 </head>
 <body>
@@ -1978,7 +2042,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
       <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
     </svg>
   </button>
+  <!-- BeReal カメラボタン -->
+  <button class="bereal-fab" id="beRealFab" onclick="openBeRealCamera(null)" title="📸 BeReal風撮影">📸</button>
   <div id="mapContainer"></div>
+</div>
+
+<!-- BeReal カメラオーバーレイ -->
+<div id="beRealOverlay">
+  <video id="beRealVideo" autoplay playsinline muted></video>
+  <video id="beRealFrontVideo" autoplay playsinline muted></video>
+  <button class="bereal-close" onclick="closeBeRealCamera()">✕</button>
+  <button class="bereal-shutter" id="beRealShutter" onclick="captureBeReal()"></button>
+  <canvas id="beRealCanvas" style="display:none"></canvas>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -4051,8 +4126,8 @@ function markerSVG(p){
 }
 
 function addMapMarker(s){
-  const p=cong[s.id];
-  const icon=L.divIcon({html:markerSVG(p),iconSize:[36,44],iconAnchor:[18,44],popupAnchor:[0,-44],className:""});
+  const iconHtml = markerIconHtml(s, _markerMode);
+  const icon=L.divIcon({html:iconHtml,iconSize:[36,44],iconAnchor:[18,44],popupAnchor:[0,-44],className:""});
   const m=L.marker([s.lat,s.lng],{icon}).addTo(map);
   m.bindPopup(popupHTML(s));
   mMarkers[s.id]=m;
@@ -4063,19 +4138,43 @@ function popupHTML(s){
   const seats=ownerData[s.id]?.seatsStatus;
   const seatsBadge=seats==='queue'?'<span style="background:#fee;color:#c0392b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🚶 行列あり</span>':seats==='full'?'<span style="background:#fee;color:#c0392b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🔴 満席</span>':seats==='few'?'<span style="background:#fff8e0;color:#b7860b;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:4px">🟡 残席わずか</span>':'';
   const col=cColor(p);
-  return `<div class="mpop"><div class="me">${s.emoji}</div><div class="mn">${s.name}${s.plan==='プレミアム'?'<span style="font-size:9px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-weight:800;padding:1px 5px;border-radius:6px;margin-left:4px">PR</span>':''}</div><div class="mg">${s.genre}</div><div class="mc" style="font-weight:800;color:${col}">${cEmoji(p)} ${cWait(p)}${seatsBadge}</div><button onclick="openDetail(${s.id})">詳細を見る</button></div>`;
+  return `<div class="mpop"><div class="me">${s.emoji}</div><div class="mn">${s.name}${s.plan==='プレミアム'?'<span style="font-size:9px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-weight:800;padding:1px 5px;border-radius:6px;margin-left:4px">PR</span>':''}</div><div class="mg">${s.genre}</div><div class="mc" style="font-weight:800;color:${col}">${cEmoji(p)} ${cWait(p)}${seatsBadge}</div><div style="display:flex;gap:6px;margin-top:6px"><button onclick="openDetail(${s.id})" style="flex:1">詳細を見る</button><button onclick="openBeRealCamera(${s.id})" style="background:var(--brand);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer">📸 撮る</button></div></div>`;
 }
 
-function updateMapMarkers(){
+// マーカー表示モード: 'cong' | 'photo'
+let _markerMode = 'cong';
+
+function markerIconHtml(s, mode){
+  const p = cong[s.id];
+  const hasPh = storePhotoMap[s.id] && storePhotoMap[s.id].length > 0;
+  const delayMs = (s.id % 7) * 300; // ランダム感のある遅延
+
+  if(mode === 'photo' && hasPh){
+    const ph = storePhotoMap[s.id][0];
+    return `<div class="map-marker-wrap marker-pulse" style="animation-delay:${delayMs}ms">
+      <img class="pin-photo-thumb visible" src="${ph.photoURL}" width="44" height="44" alt="">
+    </div>`;
+  }
+
+  const bounceClass = hasPh ? 'marker-pulse' : 'marker-bounce';
+  const badge = hasPh ? '<div class="map-photo-badge">📷</div>' : '';
+  return `<div class="map-marker-wrap ${bounceClass}" style="animation-delay:${delayMs}ms">
+    ${markerSVG(p)}${badge}
+  </div>`;
+}
+
+function updateMapMarkers(mode){
   if(!map) return;
+  if(mode) _markerMode = mode;
   STORES.forEach(s=>{
     const m=mMarkers[s.id];
     if(!m) return;
-    const hasPh = storePhotoMap[s.id] && storePhotoMap[s.id].length > 0;
-    const iconHtml = hasPh
-      ? `<div class="map-marker-wrap">${markerSVG(cong[s.id])}<div class="map-photo-badge">📷</div></div>`
-      : markerSVG(cong[s.id]);
-    m.setIcon(L.divIcon({html:iconHtml,iconSize:[36,44],iconAnchor:[18,44],popupAnchor:[0,-44],className:""}));
+    const iconHtml = markerIconHtml(s, _markerMode);
+    const sz = _markerMode === 'photo' && storePhotoMap[s.id]?.length
+      ? [50,50] : [36,44];
+    const anch = _markerMode === 'photo' && storePhotoMap[s.id]?.length
+      ? [25,50] : [18,44];
+    m.setIcon(L.divIcon({html:iconHtml, iconSize:sz, iconAnchor:anch, popupAnchor:[0,-anch[1]], className:""}));
     m.setPopupContent(popupHTML(s));
   });
 }
@@ -4173,6 +4272,126 @@ function closePhotoViewer(){
   document.getElementById('photoViewerOverlay').classList.remove('open');
   document.getElementById('photoViewerImg').src = '';
 }
+
+// ─── BeReal カメラ ────────────────────────────────────────────
+let _berealBackStream  = null;
+let _berealFrontStream = null;
+let _berealStoreId     = null;
+
+async function openBeRealCamera(storeId){
+  _berealStoreId = storeId;
+  const overlay = document.getElementById('beRealOverlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const videoBack  = document.getElementById('beRealVideo');
+  const videoFront = document.getElementById('beRealFrontVideo');
+
+  try {
+    _berealBackStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } },
+      audio:false
+    });
+    videoBack.srcObject = _berealBackStream;
+  } catch(e){
+    console.warn('背面カメラ取得失敗:', e);
+    showToast('カメラのアクセスを許可してください');
+    closeBeRealCamera(); return;
+  }
+
+  try {
+    _berealFrontStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'user', width:{ ideal:320 }, height:{ ideal:320 } },
+      audio:false
+    });
+    videoFront.srcObject = _berealFrontStream;
+  } catch(e){
+    // 前カメラが使えなくても後ろだけで続行
+    console.warn('前カメラ取得失敗（続行）:', e);
+  }
+}
+
+function captureBeReal(){
+  const videoBack  = document.getElementById('beRealVideo');
+  const videoFront = document.getElementById('beRealFrontVideo');
+  const canvas     = document.getElementById('beRealCanvas');
+
+  const W = 1080, H = 1080;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // メイン映像を全面に描画
+  ctx.drawImage(videoBack, 0, 0, W, H);
+
+  // 前カメラ小窓（右上 1/4 サイズ）
+  if(_berealFrontStream && videoFront.srcObject){
+    const sw = Math.floor(W * 0.28), sh = Math.floor(H * 0.28);
+    const sx = W - sw - 20, sy = 20;
+    const r  = 16;
+
+    // 丸角クリップ（roundRect対応有無に関わらず動くポリフィル）
+    function roundedRect(cx, cy, cw, ch, cr){
+      ctx.beginPath();
+      ctx.moveTo(cx + cr, cy);
+      ctx.lineTo(cx + cw - cr, cy);
+      ctx.quadraticCurveTo(cx + cw, cy, cx + cw, cy + cr);
+      ctx.lineTo(cx + cw, cy + ch - cr);
+      ctx.quadraticCurveTo(cx + cw, cy + ch, cx + cw - cr, cy + ch);
+      ctx.lineTo(cx + cr, cy + ch);
+      ctx.quadraticCurveTo(cx, cy + ch, cx, cy + ch - cr);
+      ctx.lineTo(cx, cy + cr);
+      ctx.quadraticCurveTo(cx, cy, cx + cr, cy);
+      ctx.closePath();
+    }
+
+    ctx.save();
+    roundedRect(sx, sy, sw, sh, r);
+    ctx.clip();
+    ctx.drawImage(videoFront, sx, sy, sw, sh);
+    ctx.restore();
+    // 枠線
+    ctx.save();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 5;
+    roundedRect(sx, sy, sw, sh, r);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Blob化 → アップロード
+  canvas.toBlob(async blob => {
+    if(!blob){ showToast('キャプチャに失敗しました'); return; }
+    const file = new File([blob], `bereal_${Date.now()}.jpg`, { type:'image/jpeg' });
+    closeBeRealCamera();
+
+    if(_berealStoreId){
+      await uploadStorePhoto(_berealStoreId, file);
+    } else {
+      // 店舗未選択 → ファイル入力経由（既存フロー）
+      _pendingUploadStoreId = null;
+      showToast('📸 撮影しました（店舗を選んで投稿してください）');
+    }
+  }, 'image/jpeg', 0.88);
+}
+
+function closeBeRealCamera(){
+  const overlay = document.getElementById('beRealOverlay');
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  [_berealBackStream, _berealFrontStream].forEach(stream=>{
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+  });
+  _berealBackStream  = null;
+  _berealFrontStream = null;
+}
+
+// ─── 写真↔混雑率 交互表示（4秒ごと） ────────────────────────
+setInterval(()=>{
+  if(!map) return;
+  _markerMode = _markerMode === 'cong' ? 'photo' : 'cong';
+  updateMapMarkers(_markerMode);
+}, 4000);
 
 // ─── TAB SWITCH ──────────────────────────────────────────────
 const TABS={home:"viewHome",search:"viewSearch",lunch:"viewLunch",map:"viewMap"};
