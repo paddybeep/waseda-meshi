@@ -1786,6 +1786,34 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   animation: pinPulse 1.8s ease-in-out infinite;
 }
 
+/* フラッシュ演出 */
+@keyframes flashFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* BeReal カウントダウン */
+#beRealCountdown {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 120px; font-weight: 900; color: #fff;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 3;
+  display: none;
+  align-items: center; justify-content: center;
+  width: 180px; height: 180px;
+  background: rgba(0,0,0,0.4); border-radius: 50%;
+}
+/* 写真ピン */
+.map-photo-pin {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.map-pin-wrap { position: relative; display: inline-block; }
+
 /* ピン写真サムネイル */
 .pin-photo-thumb {
   width:44px; height:44px; border-radius:50%;
@@ -2067,7 +2095,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   "></div>
   <button class="bereal-close" onclick="closeBeRealCamera()">✕</button>
   <button class="bereal-shutter" id="beRealShutter" onclick="captureBeReal()"></button>
+  <div id="beRealCountdown">3</div>
   <canvas id="beRealCanvas" style="display:none"></canvas>
+</div>
+
+<!-- STORE PICKER SHEET（写真投稿用） -->
+<div class="sheet-overlay" id="storePickerOverlay" onclick="onBgClick(event,'storePickerOverlay')">
+  <div class="sheet" id="storePickerSheet" style="max-height:80vh;overflow-y:auto;padding:0">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:1">
+      <div style="font-size:18px;font-weight:800">📍 どこのお店？</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">写真を投稿するお店を選んでください</div>
+    </div>
+    <div id="storePickerList"></div>
+  </div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -4158,20 +4198,26 @@ function popupHTML(s){
 // マーカー表示モード: 'cong' | 'photo'
 let _markerMode = 'cong';
 
+function _getStorePhotos(storeId){
+  const sid = String(storeId);
+  return storePhotoMap[sid] || [];
+}
+
 function markerIconHtml(s, mode){
   const p = cong[s.id];
-  const hasPh = storePhotoMap[s.id] && storePhotoMap[s.id].length > 0;
-  const delayMs = (s.id % 7) * 300; // ランダム感のある遅延
+  const photos = _getStorePhotos(s.id);
+  const hasPh = photos.length > 0;
+  const delayMs = (s.id % 7) * 300;
 
   if(mode === 'photo' && hasPh){
-    const ph = storePhotoMap[s.id][0];
-    return `<div class="map-marker-wrap marker-pulse" style="animation-delay:${delayMs}ms">
-      <img class="pin-photo-thumb visible" src="${ph.photoURL}" width="44" height="44" alt="">
+    const ph = photos[0];
+    return `<div class="map-pin-wrap marker-pulse" style="animation-delay:${delayMs}ms">
+      <div class="map-photo-pin" style="background-image:url('${ph.photoURL}')"></div>
     </div>`;
   }
 
   const bounceClass = hasPh ? 'marker-pulse' : 'marker-bounce';
-  const badge = hasPh ? '<div class="map-photo-badge">📷</div>' : '';
+  const badge = hasPh ? `<div class="map-photo-badge">📷${photos.length}</div>` : '';
   return `<div class="map-marker-wrap ${bounceClass}" style="animation-delay:${delayMs}ms">
     ${markerSVG(p)}${badge}
   </div>`;
@@ -4183,11 +4229,10 @@ function updateMapMarkers(mode){
   STORES.forEach(s=>{
     const m=mMarkers[s.id];
     if(!m) return;
+    const hasPh = _getStorePhotos(s.id).length > 0;
     const iconHtml = markerIconHtml(s, _markerMode);
-    const sz = _markerMode === 'photo' && storePhotoMap[s.id]?.length
-      ? [50,50] : [36,44];
-    const anch = _markerMode === 'photo' && storePhotoMap[s.id]?.length
-      ? [25,50] : [18,44];
+    const sz = _markerMode === 'photo' && hasPh ? [50,50] : [36,44];
+    const anch = _markerMode === 'photo' && hasPh ? [25,50] : [18,44];
     m.setIcon(L.divIcon({html:iconHtml, iconSize:sz, iconAnchor:anch, popupAnchor:[0,-anch[1]], className:""}));
     m.setPopupContent(popupHTML(s));
   });
@@ -4202,16 +4247,37 @@ let _pendingUploadStoreId = null;
 // Firestoreのphotosコレクションをリアルタイム購読
 function subscribePhotos(){
   if(_photoUnsub) return; // already subscribed
-  _photoUnsub = db.collection('photos').onSnapshot(snap=>{
-    storePhotoMap = {};
-    snap.forEach(doc=>{
-      const d = doc.data();
-      if(!d.storeId) return;
-      if(!storePhotoMap[d.storeId]) storePhotoMap[d.storeId] = [];
-      storePhotoMap[d.storeId].push({ id: doc.id, ...d });
-    });
-    updateMapMarkers();
-  }, err=>{ console.warn('photos subscribe error', err); });
+  if(typeof db === 'undefined' || !db){ console.warn('[Photos] db not ready'); return; }
+  console.log('[Photos] Subscribing to photos collection...');
+  try {
+    _photoUnsub = db.collection('photos').onSnapshot(snap=>{
+      console.log('[Photos] Snapshot received:', snap.size, 'docs');
+      storePhotoMap = {};
+      const arr = [];
+      snap.forEach(doc=>{
+        const d = doc.data();
+        if(d.storeId === undefined || d.storeId === null) return;
+        arr.push({ id: doc.id, ...d });
+      });
+      // 新しい順にソート
+      arr.sort((a,b)=>{
+        const ta = a.timestamp?.toMillis?.() || 0;
+        const tb = b.timestamp?.toMillis?.() || 0;
+        return tb - ta;
+      });
+      arr.forEach(p=>{
+        const sid = String(p.storeId);
+        if(!storePhotoMap[sid]) storePhotoMap[sid] = [];
+        storePhotoMap[sid].push(p);
+      });
+      console.log('[Photos] storePhotoMap keys:', Object.keys(storePhotoMap));
+      if(typeof updateMapMarkers === 'function') updateMapMarkers(_markerMode || 'cong');
+      // 詳細シートが開いてたらサムネ更新
+      if(curDetail) loadStorePhotos(curDetail);
+    }, err=>{ console.error('[Photos] Subscription error:', err); });
+  } catch(e){
+    console.error('[Photos] subscribe failed:', e);
+  }
 }
 
 // 写真投稿ボタンタップ
@@ -4228,30 +4294,33 @@ function handlePhotoFile(e){
   uploadStorePhoto(_pendingUploadStoreId, file);
 }
 
-async function uploadStorePhoto(storeId, file){
-  const s = STORES.find(x=>x.id===storeId);
-  if(!s){ showToast('店舗が見つかりません'); return; }
-  showToast('📷 アップロード中...');
+async function uploadStorePhoto(storeId, fileOrBlob){
+  const s = STORES.find(x=>String(x.id)===String(storeId));
+  if(!s){ console.error('[Upload] Store not found:', storeId); showToast('店舗が見つかりません'); return; }
   try {
     const ts = Date.now();
-    const path = `photos/${storeId}/${ts}_${myCode}`;
+    const uid = (typeof myCode !== 'undefined' && myCode) ? myCode : 'anon';
+    const path = `photos/${storeId}/${ts}_${uid}.jpg`;
+    console.log('[Upload] Uploading to:', path);
     const ref = storage.ref(path);
-    await ref.put(file);
-    const photoURL = await ref.getDownloadURL();
-    await db.collection('photos').add({
-      storeId: storeId,
+    const snapshot = await ref.put(fileOrBlob, { contentType: 'image/jpeg' });
+    const photoURL = await snapshot.ref.getDownloadURL();
+    console.log('[Upload] Got URL:', photoURL);
+    const docRef = await db.collection('photos').add({
+      storeId: String(storeId),
       storeName: s.name,
       lat: s.lat,
       lng: s.lng,
       photoURL: photoURL,
-      userId: myCode,
+      userId: uid,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
+    console.log('[Upload] Firestore doc created:', docRef.id);
     showToast('写真を投稿しました 📷');
     loadStorePhotos(storeId);
   } catch(err){
-    console.error('upload error', err);
-    showToast('アップロードに失敗しました。もう一度お試しください');
+    console.error('[Upload] Error:', err);
+    showToast('❌ アップロード失敗: ' + (err.message || err));
   }
 }
 
@@ -4259,18 +4328,18 @@ async function uploadStorePhoto(storeId, file){
 function loadStorePhotos(storeId){
   const row = document.getElementById('storePhotosRow');
   if(!row) return;
-  const photos = storePhotoMap[storeId] || [];
+  const photos = _getStorePhotos(storeId);
   if(photos.length === 0){
-    row.innerHTML = '<span style="font-size:12px;color:var(--muted);padding:4px 0">まだ写真がありません</span>';
+    row.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">まだ写真がありません。最初の1枚を投稿しよう！📸</div>';
     return;
   }
-  // 新しい順に最大20枚表示
-  const sorted = [...photos].sort((a,b)=>{ const ta=a.timestamp?.toMillis?.()||0; const tb=b.timestamp?.toMillis?.()||0; return tb-ta; });
-  row.innerHTML = sorted.slice(0,20).map((ph,i)=>`
-    <img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
-      onclick="openPhotoViewer('${ph.photoURL}','${ph.storeName||''}',${ph.timestamp?.toMillis?.()||0})"
-      alt="写真${i+1}">
-  `).join('');
+  row.innerHTML = photos.slice(0,20).map((ph,i)=>{
+    const tsMs = ph.timestamp?.toMillis?.() || 0;
+    const safeName = String(ph.storeName||'').replace(/'/g,"\\'");
+    return `<img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
+      onclick="openPhotoViewer('${ph.photoURL}','${safeName}',${tsMs})"
+      alt="写真${i+1}">`;
+  }).join('');
 }
 
 // フォトビューアーを開く
@@ -4319,13 +4388,18 @@ async function _startBeRealStream(facing){
 }
 
 async function openBeRealCamera(storeId){
-  if(!storeId) storeId = await _findNearestStoreId();
-  _bereal = { phase:'back', backImg:null, frontImg:null, storeId, stream:null };
+  // storeId が null/undefined ならピン未確定モード（撮影後に店舗選択）
+  _bereal = { phase:'back', backImg:null, frontImg:null, storeId: storeId || null, stream:null };
   document.getElementById('beRealOverlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  // シャッターボタン有効化
+  const btn = document.querySelector('.bereal-shutter');
+  if(btn){ btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+  const cd = document.getElementById('beRealCountdown');
+  if(cd) cd.style.display = 'none';
   try {
     await _startBeRealStream('environment');
-    document.getElementById('beRealLabel').textContent = '🍜 料理を撮ろう';
+    document.getElementById('beRealLabel').textContent = '🍜 料理を撮ろう（タップで2枚連続撮影）';
   } catch(e){
     console.warn('カメラ取得失敗:', e);
     showToast('カメラのアクセスを許可してください');
@@ -4333,31 +4407,71 @@ async function openBeRealCamera(storeId){
   }
 }
 
-async function captureBeReal(){
-  const v = document.getElementById('beRealVideo');
+function _captureSquareFrame(v){
   const cv = document.createElement('canvas');
   cv.width = 1080; cv.height = 1080;
   const ctx = cv.getContext('2d');
   const vw = v.videoWidth, vh = v.videoHeight;
-  if(!vw || !vh){ showToast('カメラ準備中...'); return; }
+  if(!vw || !vh) return null;
   const side = Math.min(vw, vh);
   const sx = (vw - side)/2, sy = (vh - side)/2;
   ctx.drawImage(v, sx, sy, side, side, 0, 0, 1080, 1080);
+  return cv;
+}
 
-  if(_bereal.phase === 'back'){
-    _bereal.backImg = cv;
-    _bereal.phase = 'front';
+function _flashScreen(){
+  const f = document.createElement('div');
+  f.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;animation:flashFade 0.4s ease-out forwards;pointer-events:none';
+  document.body.appendChild(f);
+  setTimeout(()=>{ if(f && f.parentNode) f.remove(); }, 500);
+}
+
+async function captureBeReal(){
+  const btn = document.querySelector('.bereal-shutter');
+  // 二重押し防止
+  if(btn && btn.dataset.busy === '1') return;
+  if(btn){ btn.dataset.busy = '1'; btn.style.pointerEvents = 'none'; btn.style.opacity = '0.4'; }
+
+  const v = document.getElementById('beRealVideo');
+  if(!v.videoWidth || !v.videoHeight){
+    showToast('カメラ準備中...');
+    if(btn){ btn.dataset.busy = ''; btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+    return;
+  }
+
+  try {
+    // Phase 1: 外カメラ撮影
+    const backImg = _captureSquareFrame(v);
+    if(!backImg) throw new Error('キャプチャ失敗(背面)');
+    _bereal.backImg = backImg;
+    _flashScreen();
+    document.getElementById('beRealLabel').textContent = '😋 リアクションを撮ろう...';
+
+    // 内カメラに切替
     try {
       await _startBeRealStream('user');
-      document.getElementById('beRealLabel').textContent = '😋 リアクションを撮ろう';
     } catch(e){
-      console.warn('前カメラ取得失敗:', e);
-      showToast('前カメラを起動できませんでした');
-      closeBeRealCamera();
+      console.warn('前カメラ失敗、外カメラのまま続行:', e);
     }
-  } else {
-    _bereal.frontImg = cv;
-    // 合成: 1080x2160（1:1 縦分割）
+
+    // 3秒カウントダウン
+    const cd = document.getElementById('beRealCountdown');
+    for(let i=3; i>=1; i--){
+      if(cd){ cd.textContent = i; cd.style.display = 'flex'; }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    if(cd) cd.style.display = 'none';
+
+    // ビデオが新ストリームで再生されてるか少し待つ
+    if(!v.videoWidth) await new Promise(r => setTimeout(r, 300));
+
+    // Phase 2: 内カメラ自動撮影
+    const frontImg = _captureSquareFrame(v);
+    if(!frontImg) throw new Error('キャプチャ失敗(前面)');
+    _bereal.frontImg = frontImg;
+    _flashScreen();
+
+    // 合成
     const final = document.createElement('canvas');
     final.width = 1080; final.height = 2160;
     const fctx = final.getContext('2d');
@@ -4366,19 +4480,50 @@ async function captureBeReal(){
     fctx.fillStyle = '#fff';
     fctx.fillRect(0, 1075, 1080, 10);
 
-    const storeId = _bereal.storeId;
     final.toBlob(async (blob)=>{
+      const sid = _bereal.storeId;
       closeBeRealCamera();
       if(!blob){ showToast('キャプチャに失敗しました'); return; }
-      const file = new File([blob], `bereal_${Date.now()}.jpg`, { type:'image/jpeg' });
-      showToast('📤 アップロード中...');
-      if(storeId){
-        await uploadStorePhoto(storeId, file);
+      if(sid){
+        showToast('📤 アップロード中...');
+        await uploadStorePhoto(sid, blob);
       } else {
-        showToast('店舗が見つかりませんでした');
+        // 店舗未確定 → 店舗選択シートを表示
+        openStorePickerForPhoto(blob);
       }
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.92);
+  } catch(e){
+    console.error('captureBeReal error:', e);
+    showToast('❌ 撮影失敗: ' + (e.message || e));
+    if(btn){ btn.dataset.busy = ''; btn.style.pointerEvents = ''; btn.style.opacity = ''; }
   }
+}
+
+// ── 写真投稿用 店舗選択シート ──
+let _pendingPhotoBlob = null;
+function openStorePickerForPhoto(blob){
+  _pendingPhotoBlob = blob;
+  const list = document.getElementById('storePickerList');
+  if(!list){ console.error('storePickerList not found'); return; }
+  list.innerHTML = STORES.map(s => `
+    <div onclick="pickStoreForPhoto(${s.id})" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--brand-light,#fbe9e9);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${genreEmoji(s.genre||'その他')}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700">${s.name}</div>
+        <div style="font-size:12px;color:var(--muted)">${s.genre||''} ・ ${s.area||s.addr||''}</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('storePickerOverlay').classList.add('open');
+}
+
+async function pickStoreForPhoto(storeId){
+  document.getElementById('storePickerOverlay').classList.remove('open');
+  if(!_pendingPhotoBlob){ console.warn('No pending blob'); return; }
+  const blob = _pendingPhotoBlob;
+  _pendingPhotoBlob = null;
+  showToast('📤 アップロード中...');
+  await uploadStorePhoto(storeId, blob);
 }
 
 function closeBeRealCamera(){
@@ -4391,6 +4536,10 @@ function closeBeRealCamera(){
   _bereal = { phase:'back', backImg:null, frontImg:null, storeId:null, stream:null };
   const label = document.getElementById('beRealLabel');
   if(label) label.textContent = '';
+  const cd = document.getElementById('beRealCountdown');
+  if(cd) cd.style.display = 'none';
+  const btn = document.querySelector('.bereal-shutter');
+  if(btn){ btn.dataset.busy = ''; btn.style.pointerEvents = ''; btn.style.opacity = ''; }
 }
 
 // ─── 写真↔混雑率 交互表示（4秒ごと） ────────────────────────
@@ -4664,7 +4813,7 @@ function submitListing(){ closeSheets(); showToast("📩 申込を受け付け�
 function closeSheets(){
   ["detailOverlay","listingOverlay","moodSettingsOverlay","settingsOverlay",
    "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay",
-   "qrOverlay","adInquiryOverlay","photoViewerOverlay"]
+   "qrOverlay","adInquiryOverlay","photoViewerOverlay","storePickerOverlay"]
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove("open"); });
   document.body.style.overflow="";
   curDetail=null;
