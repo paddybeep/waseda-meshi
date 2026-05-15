@@ -2220,6 +2220,26 @@ const analytics = firebase.analytics();
 const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
+// ── 匿名認証（Storage/Firestoreルール対応） ──────────────────
+async function ensureAnonymousAuth(){
+  try {
+    if (!firebase.auth().currentUser) {
+      await firebase.auth().signInAnonymously();
+      console.log('[Auth] Anonymous sign-in OK:', firebase.auth().currentUser?.uid);
+    }
+  } catch(e){
+    console.error('[Auth] Anonymous sign-in failed:', e);
+  }
+}
+
+// Auth state変更でログ
+firebase.auth().onAuthStateChanged(user => {
+  console.log('[Auth] State changed:', user ? user.uid : 'null');
+});
+
+// ページ読み込み時に匿名サインイン
+ensureAnonymousAuth();
+
 // ── Google認証 ────────────────────────────────────────────────
 let currentGoogleUser = null;
 
@@ -2347,14 +2367,14 @@ function saveAndSyncFriends() {
 // 認証状態の変化を監視
 let _authHandled = false;
 auth.onAuthStateChanged(user => {
-  if (user) {
+  if (user && !user.isAnonymous) {
     currentGoogleUser = user;
     if (!_authHandled) {
       _authHandled = true;
       // 画面が完全に初期化された後に復元処理（最初の1回のみ）
       setTimeout(() => handleGoogleSignIn(user), 500);
     }
-  } else {
+  } else if (!user) {
     currentGoogleUser = null;
     _authHandled = false;
     // サインアウト時にメイトカードを更新
@@ -4295,6 +4315,7 @@ function handlePhotoFile(e){
 }
 
 async function uploadStorePhoto(storeId, fileOrBlob){
+  await ensureAnonymousAuth();
   const s = STORES.find(x=>String(x.id)===String(storeId));
   if(!s){ console.error('[Upload] Store not found:', storeId); showToast('店舗が見つかりません'); return; }
   try {
@@ -4313,6 +4334,7 @@ async function uploadStorePhoto(storeId, fileOrBlob){
       lng: s.lng,
       photoURL: photoURL,
       userId: uid,
+      userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
@@ -4320,7 +4342,13 @@ async function uploadStorePhoto(storeId, fileOrBlob){
     loadStorePhotos(storeId);
   } catch(err){
     console.error('[Upload] Error:', err);
-    showToast('❌ アップロード失敗: ' + (err.message || err));
+    let msg = err.message || String(err);
+    if(/admin-restricted|operation-not-allowed/.test(msg)){
+      msg = 'Firebase Console > Authentication > Sign-in method で「匿名」を有効化してください';
+    } else if(/unauthorized|permission/i.test(msg)){
+      msg = 'Storage/Firestoreのセキュリティルールを確認してください';
+    }
+    showToast('❌ ' + msg);
   }
 }
 
@@ -4328,18 +4356,47 @@ async function uploadStorePhoto(storeId, fileOrBlob){
 function loadStorePhotos(storeId){
   const row = document.getElementById('storePhotosRow');
   if(!row) return;
+
   const photos = _getStorePhotos(storeId);
   if(photos.length === 0){
     row.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">まだ写真がありません。最初の1枚を投稿しよう！📸</div>';
     return;
   }
-  row.innerHTML = photos.slice(0,20).map((ph,i)=>{
-    const tsMs = ph.timestamp?.toMillis?.() || 0;
-    const safeName = String(ph.storeName||'').replace(/'/g,"\\'");
-    return `<img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
-      onclick="openPhotoViewer('${ph.photoURL}','${safeName}',${tsMs})"
-      alt="写真${i+1}">`;
-  }).join('');
+
+  // 3カテゴリに分類
+  const friendCodes = new Set((typeof friendsList !== 'undefined' ? friendsList : []).map(f => f.code));
+  const mine = [], frens = [], others = [];
+  photos.forEach(p => {
+    if (p.userId === myCode) mine.push(p);
+    else if (friendCodes.has(p.userId)) frens.push(p);
+    else others.push(p);
+  });
+
+  const renderSection = (title, arr, color) => {
+    if (arr.length === 0) return '';
+    return `
+      <div style="margin-top:14px">
+        <div style="font-size:13px;font-weight:800;color:${color};margin-bottom:6px;letter-spacing:0.3px">
+          ${title} <span style="color:var(--muted);font-weight:600">${arr.length}</span>
+        </div>
+        <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px">
+          ${arr.slice(0,30).map((ph,i) => {
+            const tsMs = ph.timestamp?.toMillis?.() || 0;
+            const safeName = String(ph.storeName||'').replace(/'/g,"\\'");
+            return `<img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
+              onclick="openPhotoViewer('${ph.photoURL}','${safeName}',${tsMs})"
+              alt="${title}${i+1}"
+              style="flex-shrink:0;width:96px;height:96px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid ${color}33">`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  row.innerHTML =
+    renderSection('🌟 あなたの写真', mine, '#8C1515') +
+    renderSection('👥 フレンドの写真', frens, '#1a9645') +
+    renderSection('🌍 みんなの写真', others, '#5a4040');
 }
 
 // フォトビューアーを開く
