@@ -1909,6 +1909,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 <!-- HOME -->
 <div class="view active" id="viewHome">
+  <!-- 🔴 LIVE フィード -->
+  <div id="liveFeedSection" style="background:linear-gradient(135deg,#FFF5F5,#FCEAEA);padding:12px 14px;border-bottom:1px solid var(--border);display:none">
+    <div style="font-size:12px;font-weight:800;color:var(--brand);margin-bottom:8px;letter-spacing:0.5px">
+      🔴 LIVE ・ 今ココで食べてる
+    </div>
+    <div id="liveFeedRow" style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none"></div>
+  </div>
+  <!-- 🔥 ホットなお店 -->
+  <div id="hotStoresBar" style="background:#fff;padding:10px 14px;border-bottom:1px solid var(--border);display:none">
+    <div style="font-size:12px;font-weight:800;color:#e74c3c;margin-bottom:6px">🔥 今日のホットな店</div>
+    <div id="hotStoresList" style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none"></div>
+  </div>
   <!-- 保存したお店ストーリー列（インスタ風） -->
   <div class="stories-wrap" id="savedStoriesRow" style="display:none"></div>
   <!-- 今すぐ入れるバナー -->
@@ -2135,9 +2147,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 <div class="photo-viewer-overlay" id="photoViewerOverlay">
   <button class="photo-viewer-close" onclick="closePhotoViewer()">✕</button>
   <img class="photo-viewer-img" id="photoViewerImg" src="" alt="">
+  <img id="photoViewerFront" src="" alt="" style="display:none;position:absolute;top:60px;right:16px;width:100px;height:100px;border-radius:14px;border:3px solid #fff;object-fit:cover;box-shadow:0 6px 20px rgba(0,0,0,0.5);z-index:10">
   <div class="photo-viewer-meta">
     <div class="pv-store" id="photoViewerStore"></div>
     <div class="pv-date" id="photoViewerDate"></div>
+    <div id="photoViewerActions" style="margin-top:8px;display:flex;gap:8px;justify-content:center"></div>
   </div>
 </div>
 
@@ -4231,8 +4245,9 @@ function markerIconHtml(s, mode){
 
   if(mode === 'photo' && hasPh){
     const ph = photos[0];
+    const back = (typeof _photoBack === 'function') ? _photoBack(ph) : (ph.photoBackURL || ph.photoURL || '');
     return `<div class="map-pin-wrap marker-pulse" style="animation-delay:${delayMs}ms">
-      <div class="map-photo-pin" style="background-image:url('${ph.photoURL}')"></div>
+      <div class="map-photo-pin" style="background-image:url('${back}')"></div>
     </div>`;
   }
 
@@ -4264,6 +4279,27 @@ let storePhotoMap = {};
 let _photoUnsub = null;
 let _pendingUploadStoreId = null;
 
+// ─── 写真ヘルパー ──────────────────────────────────────────
+function _isFresh(photo){
+  const t = photo.timestamp?.toMillis?.() || 0;
+  return t > Date.now() - 24 * 60 * 60 * 1000;
+}
+function _hoursLeft(photo){
+  const t = photo.timestamp?.toMillis?.() || 0;
+  const ms = (t + 24*60*60*1000) - Date.now();
+  if (ms <= 0) return '消滅';
+  const h = Math.floor(ms / (60*60*1000));
+  return h > 0 ? `${h}h` : `${Math.floor(ms/60000)}m`;
+}
+function _canSeeFront(photo){
+  if (!photo.userId) return false;
+  if (photo.userId === myCode) return true;
+  const friendCodes = new Set((typeof friendsList !== 'undefined' ? friendsList : []).map(f => f.code));
+  if (friendCodes.has(photo.userId)) return true;
+  return false;
+}
+function _photoBack(p){ return p.photoBackURL || p.photoURL || ''; }
+
 // Firestoreのphotosコレクションをリアルタイム購読
 function subscribePhotos(){
   if(_photoUnsub) return; // already subscribed
@@ -4277,6 +4313,8 @@ function subscribePhotos(){
       snap.forEach(doc=>{
         const d = doc.data();
         if(d.storeId === undefined || d.storeId === null) return;
+        if(d.hidden) return;
+        if(!_isFresh(d)) return;
         arr.push({ id: doc.id, ...d });
       });
       // 新しい順にソート
@@ -4292,12 +4330,118 @@ function subscribePhotos(){
       });
       console.log('[Photos] storePhotoMap keys:', Object.keys(storePhotoMap));
       if(typeof updateMapMarkers === 'function') updateMapMarkers(_markerMode || 'cong');
+      // ホーム上のフィードを更新
+      if(typeof renderLiveFeed === 'function') renderLiveFeed();
+      if(typeof renderHotStores === 'function') renderHotStores();
       // 詳細シートが開いてたらサムネ更新
       if(curDetail) loadStorePhotos(curDetail);
     }, err=>{ console.error('[Photos] Subscription error:', err); });
   } catch(e){
     console.error('[Photos] subscribe failed:', e);
   }
+}
+
+// 自分の期限切れ写真を best-effort で削除
+async function _cleanupExpiredOwnPhotos(){
+  if (typeof myCode === 'undefined' || !myCode) return;
+  if (typeof db === 'undefined' || !db) return;
+  const cutoff = Date.now() - 24*60*60*1000;
+  try {
+    const snap = await db.collection('photos')
+      .where('userId','==', myCode)
+      .get();
+    const batch = db.batch();
+    let count = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      const t = d.timestamp?.toMillis?.() || 0;
+      if (t && t < cutoff) { batch.delete(doc.ref); count++; }
+    });
+    if (count > 0) { await batch.commit(); console.log('[Cleanup] Deleted', count, 'expired photos'); }
+  } catch(e) { console.warn('[Cleanup]', e); }
+}
+
+// ─── 🔴 LIVE フィード ──────────────────────────────────────
+function renderLiveFeed(){
+  const wrap = document.getElementById('liveFeedSection');
+  const row = document.getElementById('liveFeedRow');
+  if (!wrap || !row) return;
+  const cutoff = Date.now() - 60*60*1000;
+  const items = [];
+  Object.keys(storePhotoMap).forEach(sid => {
+    (storePhotoMap[sid]||[]).forEach(p => {
+      const t = p.timestamp?.toMillis?.() || 0;
+      if (t >= cutoff) items.push(p);
+    });
+  });
+  items.sort((a,b) => (b.timestamp?.toMillis?.()||0) - (a.timestamp?.toMillis?.()||0));
+  if (items.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  row.innerHTML = items.slice(0,20).map(p => {
+    const tsMs = p.timestamp?.toMillis?.() || 0;
+    const mins = Math.max(1, Math.floor((Date.now()-tsMs)/60000));
+    const showFront = _canSeeFront(p);
+    return `
+      <div onclick="jumpToMap(${parseInt(p.storeId)})" style="flex-shrink:0;cursor:pointer;text-align:center">
+        <div style="position:relative;width:64px;height:64px;border-radius:50%;border:3px solid var(--brand);background-size:cover;background-position:center;background-image:url('${_photoBack(p)}')">
+          ${showFront && p.photoFrontURL ? `<img src="${p.photoFrontURL}" style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;object-fit:cover">` : ''}
+          <span style="position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;font-size:9px;font-weight:800;padding:1px 4px;border-radius:8px;border:1.5px solid #fff">${mins}m</span>
+        </div>
+        <div style="font-size:10px;font-weight:700;margin-top:4px;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.storeName||''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── 🔥 ホットなお店 ──────────────────────────────────────
+function renderHotStores(){
+  const bar = document.getElementById('hotStoresBar');
+  const list = document.getElementById('hotStoresList');
+  if (!bar || !list) return;
+  const cutoff = Date.now() - 4*60*60*1000;
+  const counts = new Map();
+  Object.keys(storePhotoMap).forEach(sid => {
+    const n = (storePhotoMap[sid]||[]).filter(p => (p.timestamp?.toMillis?.()||0) >= cutoff).length;
+    if (n > 0) counts.set(sid, n);
+  });
+  const sorted = [...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (sorted.length === 0) { bar.style.display='none'; return; }
+  bar.style.display = 'block';
+  list.innerHTML = sorted.map(([sid, n]) => {
+    const s = STORES.find(x => String(x.id) === sid);
+    if (!s) return '';
+    return `
+      <div onclick="openDetail(${s.id})" style="flex-shrink:0;background:var(--bg);border-radius:14px;padding:8px 12px;cursor:pointer;border:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700">${s.name}</div>
+        <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-top:2px">🔥 ${n}枚</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 通報＆削除
+async function reportPhoto(photoId){
+  if (!confirm('この写真を通報しますか？')) return;
+  await ensureAnonymousAuth();
+  try {
+    await db.collection('photos').doc(photoId).update({
+      reports: firebase.firestore.FieldValue.increment(1)
+    });
+    const fresh = await db.collection('photos').doc(photoId).get();
+    if (fresh.exists && (fresh.data().reports || 0) >= 3) {
+      await db.collection('photos').doc(photoId).update({ hidden: true });
+    }
+    showToast('通報しました。確認します。');
+  } catch(e){ console.warn(e); showToast('通報に失敗しました'); }
+}
+async function deleteMyPhoto(photoId){
+  if (!confirm('この写真を削除しますか？')) return;
+  await ensureAnonymousAuth();
+  try {
+    await db.collection('photos').doc(photoId).delete();
+    showToast('削除しました');
+    if (curDetail) loadStorePhotos(curDetail);
+  } catch(e){ console.warn(e); showToast('削除に失敗しました'); }
 }
 
 // 写真投稿ボタンタップ
@@ -4314,28 +4458,45 @@ function handlePhotoFile(e){
   uploadStorePhoto(_pendingUploadStoreId, file);
 }
 
-async function uploadStorePhoto(storeId, fileOrBlob){
+async function _uploadOne(blob, path){
+  const ref = storage.ref(path);
+  const snap = await ref.put(blob, { contentType: 'image/jpeg' });
+  return await snap.ref.getDownloadURL();
+}
+
+async function uploadStorePhoto(storeId, input){
   await ensureAnonymousAuth();
   const s = STORES.find(x=>String(x.id)===String(storeId));
   if(!s){ console.error('[Upload] Store not found:', storeId); showToast('店舗が見つかりません'); return; }
   try {
     const ts = Date.now();
     const uid = (typeof myCode !== 'undefined' && myCode) ? myCode : 'anon';
-    const path = `photos/${storeId}/${ts}_${uid}.jpg`;
-    console.log('[Upload] Uploading to:', path);
-    const ref = storage.ref(path);
-    const snapshot = await ref.put(fileOrBlob, { contentType: 'image/jpeg' });
-    const photoURL = await snapshot.ref.getDownloadURL();
-    console.log('[Upload] Got URL:', photoURL);
+
+    // 互換: input が { back, front } か単一の Blob/File かを判定
+    let backURL = null, frontURL = null;
+    if (input && (input.back || input.front)){
+      const tasks = [];
+      if (input.back) tasks.push(_uploadOne(input.back, `photos/${storeId}/${ts}_${uid}_back.jpg`).then(u=>backURL=u));
+      if (input.front) tasks.push(_uploadOne(input.front, `photos/${storeId}/${ts}_${uid}_front.jpg`).then(u=>frontURL=u));
+      await Promise.all(tasks);
+    } else {
+      // 旧フロー: 単一画像
+      backURL = await _uploadOne(input, `photos/${storeId}/${ts}_${uid}.jpg`);
+    }
+
     const docRef = await db.collection('photos').add({
       storeId: String(storeId),
       storeName: s.name,
       lat: s.lat,
       lng: s.lng,
-      photoURL: photoURL,
+      photoBackURL: backURL,
+      photoFrontURL: frontURL,
+      photoURL: backURL, // 後方互換
       userId: uid,
       userIdAuth: firebase.auth().currentUser?.uid || null,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      reports: 0,
+      hidden: false
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
     showToast('写真を投稿しました 📷');
@@ -4381,12 +4542,28 @@ function loadStorePhotos(storeId){
         </div>
         <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px">
           ${arr.slice(0,30).map((ph,i) => {
-            const tsMs = ph.timestamp?.toMillis?.() || 0;
-            const safeName = String(ph.storeName||'').replace(/'/g,"\\'");
-            return `<img class="store-photo-thumb" src="${ph.photoURL}" loading="lazy"
-              onclick="openPhotoViewer('${ph.photoURL}','${safeName}',${tsMs})"
-              alt="${title}${i+1}"
-              style="flex-shrink:0;width:96px;height:96px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid ${color}33">`;
+            const back = _photoBack(ph);
+            const showFront = _canSeeFront(ph) && ph.photoFrontURL;
+            const isMine = ph.userId === myCode;
+            const hLeft = _hoursLeft(ph);
+            const front = showFront
+              ? `<img src="${ph.photoFrontURL}" style="position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:2px solid #fff;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.4)">`
+              : '';
+            const timeBadge = `<span style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.55);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:8px">⏰${hLeft}</span>`;
+            const actionBtn = isMine
+              ? `<button onclick="event.stopPropagation();deleteMyPhoto('${ph.id}')" style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;padding:0">🗑</button>`
+              : `<button onclick="event.stopPropagation();reportPhoto('${ph.id}')" style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;padding:0">⚠️</button>`;
+            const phJson = encodeURIComponent(JSON.stringify({ id: ph.id, photoBackURL: back, photoFrontURL: ph.photoFrontURL||'', storeName: ph.storeName||'', userId: ph.userId||'', timestampMs: ph.timestamp?.toMillis?.() || 0 }));
+            return `
+              <div style="position:relative;flex-shrink:0">
+                <img class="store-photo-thumb" src="${back}" loading="lazy"
+                  onclick="openPhotoViewer('${phJson}')"
+                  alt="${title}${i+1}"
+                  style="display:block;width:96px;height:96px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid ${color}33">
+                ${front}
+                ${timeBadge}
+                ${actionBtn}
+              </div>`;
           }).join('')}
         </div>
       </div>
@@ -4399,18 +4576,56 @@ function loadStorePhotos(storeId){
     renderSection('🌍 みんなの写真', others, '#5a4040');
 }
 
-// フォトビューアーを開く
-function openPhotoViewer(url, storeName, tsMs){
-  document.getElementById('photoViewerImg').src = url;
-  document.getElementById('photoViewerStore').textContent = storeName;
+// フォトビューアーを開く（引数は encodeURIComponent された JSON、または 旧 url 文字列）
+function openPhotoViewer(arg, legacyStoreName, legacyTsMs){
+  let photo;
+  if (typeof arg === 'string' && arg.startsWith('%7B')){
+    try { photo = JSON.parse(decodeURIComponent(arg)); } catch(e){ photo = null; }
+  } else if (typeof arg === 'object' && arg){
+    photo = arg;
+  }
+  if (!photo){
+    // 後方互換: 旧シグネチャ (url, storeName, tsMs)
+    photo = { photoBackURL: arg, storeName: legacyStoreName||'', timestampMs: legacyTsMs||0 };
+  }
+  const back = photo.photoBackURL || photo.photoURL || '';
+  document.getElementById('photoViewerImg').src = back;
+  document.getElementById('photoViewerStore').textContent = photo.storeName || '';
+  const tsMs = photo.timestampMs || (photo.timestamp?.toMillis?.() || 0);
   const dateStr = tsMs ? new Date(tsMs).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '';
-  document.getElementById('photoViewerDate').textContent = dateStr;
+  document.getElementById('photoViewerDate').textContent = dateStr + (tsMs ? ` ・ ⏰${_hoursLeft({timestamp:{toMillis:()=>tsMs}})}` : '');
+
+  // フロント（顔）画像オーバーレイ
+  const fEl = document.getElementById('photoViewerFront');
+  const showFront = _canSeeFront(photo) && photo.photoFrontURL;
+  if (showFront){
+    fEl.src = photo.photoFrontURL;
+    fEl.style.display = 'block';
+  } else {
+    fEl.style.display = 'none';
+    fEl.src = '';
+  }
+
+  // アクションボタン
+  const actions = document.getElementById('photoViewerActions');
+  if (actions && photo.id){
+    if (photo.userId === myCode){
+      actions.innerHTML = `<button onclick="deleteMyPhoto('${photo.id}');closePhotoViewer()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">🗑 削除</button>`;
+    } else {
+      actions.innerHTML = `<button onclick="reportPhoto('${photo.id}')" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">⚠️ 通報</button>`;
+    }
+  } else if (actions){
+    actions.innerHTML = '';
+  }
+
   document.getElementById('photoViewerOverlay').classList.add('open');
 }
 
 function closePhotoViewer(){
   document.getElementById('photoViewerOverlay').classList.remove('open');
   document.getElementById('photoViewerImg').src = '';
+  const fEl = document.getElementById('photoViewerFront');
+  if (fEl){ fEl.style.display = 'none'; fEl.src = ''; }
 }
 
 // ─── BeReal カメラ（連続撮影フロー） ─────────────────────────
@@ -4528,27 +4743,18 @@ async function captureBeReal(){
     _bereal.frontImg = frontImg;
     _flashScreen();
 
-    // 合成
-    const final = document.createElement('canvas');
-    final.width = 1080; final.height = 2160;
-    const fctx = final.getContext('2d');
-    fctx.drawImage(_bereal.backImg, 0, 0, 1080, 1080);
-    fctx.drawImage(_bereal.frontImg, 0, 1080, 1080, 1080);
-    fctx.fillStyle = '#fff';
-    fctx.fillRect(0, 1075, 1080, 10);
-
-    final.toBlob(async (blob)=>{
-      const sid = _bereal.storeId;
-      closeBeRealCamera();
-      if(!blob){ showToast('キャプチャに失敗しました'); return; }
-      if(sid){
-        showToast('📤 アップロード中...');
-        await uploadStorePhoto(sid, blob);
-      } else {
-        // 店舗未確定 → 店舗選択シートを表示
-        openStorePickerForPhoto(blob);
-      }
-    }, 'image/jpeg', 0.92);
+    // 合成せず2枚を別々に blob 化
+    const backBlob = await new Promise(r => _bereal.backImg.toBlob(r, 'image/jpeg', 0.9));
+    const frontBlob = await new Promise(r => _bereal.frontImg.toBlob(r, 'image/jpeg', 0.9));
+    const sid = _bereal.storeId;
+    closeBeRealCamera();
+    if(!backBlob || !frontBlob){ showToast('キャプチャに失敗しました'); return; }
+    if(sid){
+      showToast('📤 アップロード中...');
+      await uploadStorePhoto(sid, { back: backBlob, front: frontBlob });
+    } else {
+      openStorePickerForPhoto({ back: backBlob, front: frontBlob });
+    }
   } catch(e){
     console.error('captureBeReal error:', e);
     showToast('❌ 撮影失敗: ' + (e.message || e));
@@ -4558,8 +4764,8 @@ async function captureBeReal(){
 
 // ── 写真投稿用 店舗選択シート ──
 let _pendingPhotoBlob = null;
-function openStorePickerForPhoto(blob){
-  _pendingPhotoBlob = blob;
+function openStorePickerForPhoto(blobOrBlobs){
+  _pendingPhotoBlob = blobOrBlobs;
   const list = document.getElementById('storePickerList');
   if(!list){ console.error('storePickerList not found'); return; }
   list.innerHTML = STORES.map(s => `
@@ -4577,10 +4783,10 @@ function openStorePickerForPhoto(blob){
 async function pickStoreForPhoto(storeId){
   document.getElementById('storePickerOverlay').classList.remove('open');
   if(!_pendingPhotoBlob){ console.warn('No pending blob'); return; }
-  const blob = _pendingPhotoBlob;
+  const payload = _pendingPhotoBlob;
   _pendingPhotoBlob = null;
   showToast('📤 アップロード中...');
-  await uploadStorePhoto(storeId, blob);
+  await uploadStorePhoto(storeId, payload);
 }
 
 function closeBeRealCamera(){
@@ -7495,6 +7701,14 @@ renderSituationGrid();
 renderPersonRow();
 renderGenreGrid();
 subscribePhotos();
+// 期限切れ写真クリーンアップ（自分の投稿のみ best-effort）
+setTimeout(()=>{ try { _cleanupExpiredOwnPhotos(); } catch(e){} }, 3000);
+setInterval(()=>{ try { _cleanupExpiredOwnPhotos(); } catch(e){} }, 60*60*1000);
+// LIVE/HOT 表示の再描画（1分ごとに経過時間バッジ更新）
+setInterval(()=>{
+  if (typeof renderLiveFeed === 'function') renderLiveFeed();
+  if (typeof renderHotStores === 'function') renderHotStores();
+}, 60*1000);
 
 // ── QRチェックイン処理（URLパラメータ） ──────────────────────
 (function handleCheckinParam() {
