@@ -1826,6 +1826,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   opacity:1; transition:opacity 0.3s;
 }
 .pin-cong-circle.hidden { opacity:0; }
+/* オンボーディング */
+.ob-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.3); transition:transform 0.2s; }
+.ob-dot.active { background:#fff; transform:scale(1.3); }
+.ob-emoji { font-size:80px; margin-bottom:24px; }
+.ob-title { font-size:24px; font-weight:900; margin-bottom:14px; line-height:1.4; }
+.ob-body { font-size:15px; opacity:0.92; line-height:1.65; }
 </style>
 </head>
 <body>
@@ -1893,6 +1899,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   <div class="sheet" id="hoursSheet"></div>
 </div>
 
+<!-- オンボーディング -->
+<div id="onboardOverlay" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#8C1515,#B22222);z-index:99999;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:40px 30px;text-align:center">
+  <div id="onboardSlides" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:360px"></div>
+  <div id="onboardDots" style="display:flex;gap:6px;margin:20px 0">
+    <span class="ob-dot active"></span>
+    <span class="ob-dot"></span>
+    <span class="ob-dot"></span>
+    <span class="ob-dot"></span>
+  </div>
+  <button id="onboardNext" onclick="onboardNext()" style="width:100%;max-width:300px;padding:16px;background:#fff;color:var(--brand);border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer">次へ</button>
+  <button onclick="onboardSkip()" style="margin-top:12px;background:none;border:none;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer">スキップ</button>
+</div>
+
 <!-- ── ユーザーUI ── -->
 <div id="userUI" style="display:none">
 
@@ -1909,6 +1928,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 <!-- HOME -->
 <div class="view active" id="viewHome">
+  <!-- 🔥 ストリーク -->
+  <div id="streakBadge" style="display:none;background:linear-gradient(135deg,#FF6B35,#F7931E);color:#fff;border-radius:24px;padding:6px 14px;font-size:13px;font-weight:800;margin:8px 14px 0;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(247,147,30,0.4);width:fit-content">
+    🔥 <span id="streakDays">0</span>日連続投稿中
+  </div>
   <!-- 🔴 LIVE フィード -->
   <div id="liveFeedSection" style="background:linear-gradient(135deg,#FFF5F5,#FCEAEA);padding:12px 14px;border-bottom:1px solid var(--border);display:none">
     <div style="font-size:12px;font-weight:800;color:var(--brand);margin-bottom:8px;letter-spacing:0.5px">
@@ -2041,6 +2064,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
   <!-- スクロール本体 -->
   <div class="lv-wrap">
+    <!-- フレンドのタイムライン -->
+    <div class="lv-section" id="friendFeedSection">
+      <div class="lv-section-title">📸 フレンドのタイムライン</div>
+      <div id="friendFeedList" style="display:flex;flex-direction:column;gap:14px"></div>
+    </div>
     <!-- フレンド一覧 -->
     <div class="lv-section" id="lvFriendsSection">
       <div class="lv-friends-header">
@@ -4500,6 +4528,7 @@ async function uploadStorePhoto(storeId, input){
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
     showToast('写真を投稿しました 📷');
+    try { _updateStreak(); renderStreakBadge(); } catch(e){}
     loadStorePhotos(storeId);
   } catch(err){
     console.error('[Upload] Error:', err);
@@ -4768,7 +4797,15 @@ function openStorePickerForPhoto(blobOrBlobs){
   _pendingPhotoBlob = blobOrBlobs;
   const list = document.getElementById('storePickerList');
   if(!list){ console.error('storePickerList not found'); return; }
-  list.innerHTML = STORES.map(s => `
+  const freeItem = `
+    <div onclick="pickStoreForPhoto('__free__')" style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:2px solid var(--brand);background:linear-gradient(135deg,#FFF5F5,#FFEAEA);cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;flex-shrink:0">🍱</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:var(--brand)">店舗なしで投稿</div>
+        <div style="font-size:12px;color:var(--sub)">ワセ飯以外の食事もOK！メイトタブに表示されます</div>
+      </div>
+    </div>`;
+  list.innerHTML = freeItem + STORES.map(s => `
     <div onclick="pickStoreForPhoto(${s.id})" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer">
       <div style="width:42px;height:42px;border-radius:50%;background:var(--brand-light,#fbe9e9);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${genreEmoji(s.genre||'その他')}</div>
       <div style="flex:1;min-width:0">
@@ -4786,7 +4823,11 @@ async function pickStoreForPhoto(storeId){
   const payload = _pendingPhotoBlob;
   _pendingPhotoBlob = null;
   showToast('📤 アップロード中...');
-  await uploadStorePhoto(storeId, payload);
+  if (storeId === '__free__'){
+    await uploadFreePhoto(payload);
+  } else {
+    await uploadStorePhoto(storeId, payload);
+  }
 }
 
 function closeBeRealCamera(){
@@ -7694,6 +7735,198 @@ function jobListingsHTML(storeId) {
   }, { passive: true });
 })();
 
+// ─── ストリーク機能 ─────────────────────────────────────────
+function _updateStreak(){
+  const today = new Date().toISOString().slice(0,10);
+  const lastDate = localStorage.getItem('wm_streakLastDate');
+  let streak = parseInt(localStorage.getItem('wm_streak') || '0', 10);
+  if (lastDate === today) return streak;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  if (lastDate === yesterday) streak += 1;
+  else streak = 1;
+  localStorage.setItem('wm_streakLastDate', today);
+  localStorage.setItem('wm_streak', String(streak));
+  return streak;
+}
+function _getStreak(){
+  const today = new Date().toISOString().slice(0,10);
+  const lastDate = localStorage.getItem('wm_streakLastDate');
+  const streak = parseInt(localStorage.getItem('wm_streak') || '0', 10);
+  if (!lastDate) return 0;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  if (lastDate !== today && lastDate !== yesterday) return 0;
+  return streak;
+}
+function renderStreakBadge(){
+  const el = document.getElementById('streakBadge');
+  if (!el) return;
+  const days = _getStreak();
+  if (days > 0){
+    document.getElementById('streakDays').textContent = days;
+    el.style.display = 'inline-flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ─── オンボーディング ────────────────────────────────────────
+const ONBOARD_SLIDES = [
+  { emoji:'🍜', title:'ワセ飯へようこそ', body:'早大生のための飯マップアプリ。\n友達と毎日の食事を共有しよう！' },
+  { emoji:'📸', title:'BeReal風に2枚撮影', body:'外カメで料理、内カメで自分を撮影。\n料理は全員、顔はフレンドだけが見れます。' },
+  { emoji:'⏰', title:'写真は24時間で消える', body:'リアルタイムな今だけ。\n気軽に投稿してOK！' },
+  { emoji:'🔥', title:'連続投稿でストリーク', body:'毎日投稿するとストリークが伸びる！\n友達とランチを共有しよう' }
+];
+let _obIdx = 0;
+function renderOnboard(){
+  const s = ONBOARD_SLIDES[_obIdx];
+  document.getElementById('onboardSlides').innerHTML = `
+    <div class="ob-emoji">${s.emoji}</div>
+    <div class="ob-title">${s.title}</div>
+    <div class="ob-body" style="white-space:pre-line">${s.body}</div>
+  `;
+  document.querySelectorAll('#onboardDots .ob-dot').forEach((d,i)=>{
+    d.classList.toggle('active', i === _obIdx);
+  });
+  document.getElementById('onboardNext').textContent = _obIdx === ONBOARD_SLIDES.length-1 ? 'はじめる' : '次へ';
+}
+function onboardNext(){
+  if (_obIdx < ONBOARD_SLIDES.length-1){ _obIdx++; renderOnboard(); }
+  else onboardComplete();
+}
+function onboardSkip(){ onboardComplete(); }
+function onboardComplete(){
+  localStorage.setItem('wm_onboarded', '1');
+  document.getElementById('onboardOverlay').style.display = 'none';
+}
+function maybeShowOnboarding(){
+  if (!localStorage.getItem('wm_onboarded')){
+    _obIdx = 0;
+    const ov = document.getElementById('onboardOverlay');
+    if (ov){ ov.style.display = 'flex'; renderOnboard(); }
+  }
+}
+
+// ─── 店舗なし投稿（自由投稿） ────────────────────────────────
+async function uploadFreePhoto(blobs){
+  await ensureAnonymousAuth();
+  try {
+    const ts = Date.now();
+    const uid = (typeof myCode !== 'undefined' && myCode) ? myCode : 'anon';
+    let backURL = null, frontURL = null;
+    if (blobs && (blobs.back || blobs.front)){
+      const tasks = [];
+      if (blobs.back) tasks.push(_uploadOne(blobs.back, `freephotos/${uid}/${ts}_back.jpg`).then(u=>backURL=u));
+      if (blobs.front) tasks.push(_uploadOne(blobs.front, `freephotos/${uid}/${ts}_front.jpg`).then(u=>frontURL=u));
+      await Promise.all(tasks);
+    } else {
+      backURL = await _uploadOne(blobs, `freephotos/${uid}/${ts}.jpg`);
+    }
+    await db.collection('freePhotos').add({
+      photoBackURL: backURL,
+      photoFrontURL: frontURL,
+      userId: uid,
+      userIdAuth: firebase.auth().currentUser?.uid || null,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      reports: 0,
+      hidden: false
+    });
+    showToast('投稿しました 📷');
+    try { _updateStreak(); renderStreakBadge(); } catch(e){}
+    renderFriendFeed();
+  } catch(e){
+    console.error('[FreeUpload]', e);
+    showToast('❌ アップロード失敗');
+  }
+}
+
+// ─── フレンドのタイムライン ──────────────────────────────────
+let _friendFeedCache = [];
+function subscribeFriendFeed(){
+  try {
+    db.collection('freePhotos').orderBy('timestamp','desc').limit(50).onSnapshot(snap => {
+      _friendFeedCache = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        const t = d.timestamp?.toMillis?.() || 0;
+        if (t && t < Date.now() - 24*60*60*1000) return;
+        if (d.hidden) return;
+        _friendFeedCache.push({ id: doc.id, ...d });
+      });
+      renderFriendFeed();
+    }, err => console.warn('[friendFeed]', err));
+  } catch(e){ console.warn('[friendFeed]', e); }
+}
+function renderFriendFeed(){
+  const list = document.getElementById('friendFeedList');
+  if (!list) return;
+  const friendCodes = new Set((typeof friendsList !== 'undefined' ? friendsList : []).map(f => f.code));
+  const items = _friendFeedCache.filter(p =>
+    p.userId === myCode || friendCodes.has(p.userId)
+  );
+  if (items.length === 0){
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);padding:24px 0;font-size:13px">まだ投稿がありません<br>📸ボタンから「店舗なしで投稿」を試してみよう！</div>`;
+    return;
+  }
+  list.innerHTML = items.map(p => {
+    const tsMs = p.timestamp?.toMillis?.() || 0;
+    const mins = Math.max(1, Math.floor((Date.now()-tsMs)/60000));
+    const timeStr = tsMs === 0 ? '今' : (mins < 60 ? `${mins}分前` : `${Math.floor(mins/60)}時間前`);
+    const isMine = p.userId === myCode;
+    const friend = (typeof friendsList !== 'undefined') ? friendsList.find(f => f.code === p.userId) : null;
+    const userName = isMine ? 'あなた' : (friend?.name || p.userId || '匿名');
+    const showFront = _canSeeFront(p) && p.photoFrontURL;
+    const phJson = encodeURIComponent(JSON.stringify({
+      id: p.id,
+      photoBackURL: p.photoBackURL,
+      photoFrontURL: p.photoFrontURL || '',
+      storeName: '自由投稿',
+      userId: p.userId || '',
+      timestampMs: tsMs
+    }));
+    const hLeft = (typeof _hoursLeft === 'function') ? _hoursLeft(p) : '';
+    return `
+      <div style="background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">${(userName||'?').charAt(0)}</div>
+          <div style="flex:1;font-size:13px;font-weight:700">${userName}</div>
+          <div style="font-size:11px;color:var(--muted)">${timeStr}</div>
+        </div>
+        <div style="position:relative;cursor:pointer" onclick="openPhotoViewer('${phJson}')">
+          <img src="${p.photoBackURL}" style="width:100%;display:block">
+          ${showFront ? `<img src="${p.photoFrontURL}" style="position:absolute;top:10px;right:10px;width:64px;height:64px;border-radius:12px;border:2.5px solid #fff;object-fit:cover;box-shadow:0 4px 12px rgba(0,0,0,0.4)">` : ''}
+        </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;align-items:center">
+          ${isMine
+            ? `<button onclick="deleteFreePhoto('${p.id}')" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">🗑 削除</button>`
+            : `<button onclick="reportFreePhoto('${p.id}')" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">⚠️ 通報</button>`
+          }
+          <div style="margin-left:auto;font-size:11px;color:var(--muted)">⏰ あと${hLeft}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+async function deleteFreePhoto(id){
+  if (!confirm('この投稿を削除しますか？')) return;
+  await ensureAnonymousAuth();
+  try { await db.collection('freePhotos').doc(id).delete(); showToast('削除しました'); }
+  catch(e){ console.warn(e); showToast('削除に失敗しました'); }
+}
+async function reportFreePhoto(id){
+  if (!confirm('この投稿を通報しますか？')) return;
+  await ensureAnonymousAuth();
+  try {
+    await db.collection('freePhotos').doc(id).update({
+      reports: firebase.firestore.FieldValue.increment(1)
+    });
+    const fresh = await db.collection('freePhotos').doc(id).get();
+    if (fresh.exists && (fresh.data().reports||0) >= 3){
+      await db.collection('freePhotos').doc(id).update({ hidden: true });
+    }
+    showToast('通報しました');
+  } catch(e){ console.warn(e); showToast('通報に失敗しました'); }
+}
+
 // ─── INIT ────────────────────────────────────────────────────
 renderStories();
 renderFeed();
@@ -7701,6 +7934,9 @@ renderSituationGrid();
 renderPersonRow();
 renderGenreGrid();
 subscribePhotos();
+subscribeFriendFeed();
+renderStreakBadge();
+maybeShowOnboarding();
 // 期限切れ写真クリーンアップ（自分の投稿のみ best-effort）
 setTimeout(()=>{ try { _cleanupExpiredOwnPhotos(); } catch(e){} }, 3000);
 setInterval(()=>{ try { _cleanupExpiredOwnPhotos(); } catch(e){} }, 60*60*1000);
