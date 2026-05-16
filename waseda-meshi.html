@@ -3840,6 +3840,52 @@ function distKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// ─── 早稲田エリア ジオフェンス ──────────────────────────────
+const WASEDA_CENTER = { lat: 35.7087, lng: 139.7196 };
+const WASEDA_RADIUS_KM = 1.8;
+let _bereal_geo = null;
+
+function _isInWasedaArea(lat, lng){
+  if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+  return distKm(lat, lng, WASEDA_CENTER.lat, WASEDA_CENTER.lng) <= WASEDA_RADIUS_KM;
+}
+
+// 現在地が早稲田エリア内か判定（Promise）
+function _checkInWasedaArea(){
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve({ ok:false, reason:'no-gps' }); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude:lat, longitude:lng } = pos.coords;
+        const inside = _isInWasedaArea(lat, lng);
+        resolve({ ok: inside, lat, lng, reason: inside ? 'in' : 'out' });
+      },
+      err => resolve({ ok:false, reason:'denied' }),
+      { timeout:8000, enableHighAccuracy:true }
+    );
+  });
+}
+
+function showAreaBlockedSheet(msg){
+  let ov = document.getElementById('areaBlockedOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'areaBlockedOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;padding:30px';
+    ov.onclick = (e)=>{ if(e.target===ov) ov.style.display='none'; };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:32px 26px;text-align:center;max-width:320px">
+      <div style="font-size:56px;margin-bottom:14px">🎓</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:10px">エリア外です</div>
+      <div style="font-size:14px;color:var(--sub);line-height:1.6;white-space:pre-line;margin-bottom:20px">${msg}</div>
+      <button onclick="document.getElementById('areaBlockedOverlay').style.display='none'" style="width:100%;padding:13px;background:var(--grad);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer">OK</button>
+    </div>
+  `;
+  ov.style.display = 'flex';
+}
+
 function searchFiltered(){
   const q = document.getElementById("searchInput").value.toLowerCase().trim();
   return STORES.filter(s => {
@@ -4124,10 +4170,32 @@ const mMarkers={};
 
 function initMap(){
   if(map) return;
-  map=L.map("mapContainer").setView([35.7095,139.7200],15);
+  // 早稲田エリアの境界（中心±約2km四方）
+  const wasedaBounds = L.latLngBounds(
+    [WASEDA_CENTER.lat - 0.022, WASEDA_CENTER.lng - 0.027],
+    [WASEDA_CENTER.lat + 0.022, WASEDA_CENTER.lng + 0.027]
+  );
+  map = L.map('mapContainer', {
+    center: [WASEDA_CENTER.lat, WASEDA_CENTER.lng],
+    zoom: 15,
+    minZoom: 14,
+    maxZoom: 19,
+    maxBounds: wasedaBounds,
+    maxBoundsViscosity: 1.0
+  });
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
     attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom:19
+  }).addTo(map);
+
+  // 早稲田エリアの円（ジオフェンス可視化）
+  L.circle([WASEDA_CENTER.lat, WASEDA_CENTER.lng], {
+    radius: WASEDA_RADIUS_KM * 1000,
+    color: '#8C1515',
+    weight: 2,
+    fillColor: '#8C1515',
+    fillOpacity: 0.04,
+    dashArray: '8 6'
   }).addTo(map);
 
   // ── 早稲田大学キャンパスマーカー ──────────────────────────
@@ -4298,6 +4366,38 @@ function updateMapMarkers(mode){
     const anch = _markerMode === 'photo' && hasPh ? [25,50] : [18,44];
     m.setIcon(L.divIcon({html:iconHtml, iconSize:sz, iconAnchor:anch, popupAnchor:[0,-anch[1]], className:""}));
     m.setPopupContent(popupHTML(s));
+  });
+  renderCheckinPins();
+}
+
+// 店舗なし投稿（チェックイン）のピンをマップに表示
+let _checkinPinMarkers = [];
+function renderCheckinPins(){
+  if(!map) return;
+  // 既存ピンをクリア
+  _checkinPinMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
+  _checkinPinMarkers = [];
+  if(typeof _friendFeedCache === 'undefined') return;
+  const cutoff = Date.now() - 24*60*60*1000;
+  _friendFeedCache.forEach(p => {
+    if(typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+    const tsMs = p.timestamp?.toMillis?.() || 0;
+    if(tsMs && tsMs < cutoff) return;
+    const back = p.photoBackURL || '';
+    if(!back) return;
+    const html = `<div class="map-pin-wrap"><div class="map-photo-pin" style="background-image:url('${back}')"></div></div>`;
+    const icon = L.divIcon({ html, iconSize:[50,50], iconAnchor:[25,50], className:'' });
+    const mk = L.marker([p.lat, p.lng], { icon }).addTo(map);
+    const phJson = encodeURIComponent(JSON.stringify({
+      id: p.id,
+      photoBackURL: p.photoBackURL,
+      photoFrontURL: p.photoFrontURL || '',
+      storeName: '自由投稿',
+      userId: p.userId || '',
+      timestampMs: tsMs
+    }));
+    mk.on('click', ()=>{ try { openPhotoViewer(phJson); } catch(e){} });
+    _checkinPinMarkers.push(mk);
   });
 }
 
@@ -4689,6 +4789,19 @@ async function _startBeRealStream(facing){
 }
 
 async function openBeRealCamera(storeId){
+  // ジオフェンスチェック
+  showToast('📍 現在地を確認中...');
+  const geo = await _checkInWasedaArea();
+  if (!geo.ok) {
+    if (geo.reason === 'denied' || geo.reason === 'no-gps') {
+      showAreaBlockedSheet('位置情報をオンにして、早稲田エリアで使ってね');
+    } else {
+      showAreaBlockedSheet('早稲田エリアに来たら投稿できます！\nキャンパス周辺で使ってね 🎓');
+    }
+    return;
+  }
+  // 現在地を保持（投稿時にピン座標として使う）
+  _bereal_geo = { lat: geo.lat, lng: geo.lng };
   // storeId が null/undefined ならピン未確定モード（撮影後に店舗選択）
   _bereal = { phase:'back', backImg:null, frontImg:null, storeId: storeId || null, stream:null };
   document.getElementById('beRealOverlay').style.display = 'flex';
@@ -7824,6 +7937,8 @@ async function uploadFreePhoto(blobs){
     await db.collection('freePhotos').add({
       photoBackURL: backURL,
       photoFrontURL: frontURL,
+      lat: _bereal_geo?.lat || null,
+      lng: _bereal_geo?.lng || null,
       userId: uid,
       userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -7853,6 +7968,7 @@ function subscribeFriendFeed(){
         _friendFeedCache.push({ id: doc.id, ...d });
       });
       renderFriendFeed();
+      if(typeof renderCheckinPins === 'function' && map) renderCheckinPins();
     }, err => console.warn('[friendFeed]', err));
   } catch(e){ console.warn('[friendFeed]', e); }
 }
