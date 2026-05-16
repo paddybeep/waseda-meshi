@@ -4379,8 +4379,11 @@ function renderCheckinPins(){
   _checkinPinMarkers = [];
   if(typeof _friendFeedCache === 'undefined') return;
   const cutoff = Date.now() - 24*60*60*1000;
+  const friendCodes = new Set((typeof friendsList !== 'undefined' ? friendsList : []).map(f => f.code));
   _friendFeedCache.forEach(p => {
     if(typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+    // フレンド限定: 自分かフレンドの投稿のみマップに表示
+    if(p.userId !== myCode && !friendCodes.has(p.userId)) return;
     const tsMs = p.timestamp?.toMillis?.() || 0;
     if(tsMs && tsMs < cutoff) return;
     const back = p.photoBackURL || '';
