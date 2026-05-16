@@ -1814,6 +1814,34 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .map-pin-wrap { position: relative; display: inline-block; }
 
+/* キャンパスチェックイン（Snapchat風 丸アイコン） */
+.map-checkin {
+  display: flex; flex-direction: column; align-items: center;
+}
+.map-checkin-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #1a9645;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  animation: checkinFloat 2.5s ease-in-out infinite;
+}
+.map-checkin-name {
+  margin-top: 3px;
+  background: #1a9645;
+  color: #fff;
+  font-size: 10px; font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+@keyframes checkinFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
 /* ピン写真サムネイル */
 .pin-photo-thumb {
   width:44px; height:44px; border-radius:50%;
@@ -4388,8 +4416,16 @@ function renderCheckinPins(){
     if(tsMs && tsMs < cutoff) return;
     const back = p.photoBackURL || '';
     if(!back) return;
-    const html = `<div class="map-pin-wrap"><div class="map-photo-pin" style="background-image:url('${back}')"></div></div>`;
-    const icon = L.divIcon({ html, iconSize:[50,50], iconAnchor:[25,50], className:'' });
+    // 顔写真があればそれを優先（フレンド限定なので顔OK）
+    const face = p.photoFrontURL || back;
+    const isMine = p.userId === myCode;
+    const friend = (typeof friendsList !== 'undefined') ? friendsList.find(f => f.code === p.userId) : null;
+    const name = isMine ? 'あなた' : (friend?.name || '友達');
+    const html = `<div class="map-checkin">`
+      + `<div class="map-checkin-avatar" style="background-image:url('${face}')"></div>`
+      + `<div class="map-checkin-name">${name}</div>`
+      + `</div>`;
+    const icon = L.divIcon({ html, iconSize:[60,68], iconAnchor:[30,34], className:'' });
     const mk = L.marker([p.lat, p.lng], { icon }).addTo(map);
     const phJson = encodeURIComponent(JSON.stringify({
       id: p.id,
