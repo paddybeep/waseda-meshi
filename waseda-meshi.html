@@ -2238,6 +2238,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   <div class="sheet" id="recruitSheet" style="padding:0 20px 28px"></div>
 </div>
 
+<!-- 投稿完了シート（写真投稿 → 混雑更新・Mate募集・スタンプ） -->
+<div class="sheet-overlay" id="postDoneOverlay" onclick="onBgClick(event,'postDoneOverlay')">
+  <div class="sheet" id="postDoneSheet" style="padding:0 20px 28px"></div>
+</div>
+
 <!-- MAP -->
 <div class="view" id="viewMap">
   <!-- マップ内検索バー -->
@@ -4966,9 +4971,12 @@ async function uploadStorePhoto(storeId, input){
       hidden: false
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
-    showToast('写真を投稿しました 📷');
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     loadStorePhotos(storeId);
+    // 写真投稿はスタンプ +2（通常チェックイン +1 の倍率UP）
+    _addStamps(s.id, 2);
+    // 投稿完了シート：混雑更新・Mate募集・スタンプフィードバック
+    showPostDoneSheet(s.id, false);
   } catch(err){
     console.error('[Upload] Error:', err);
     let msg = err.message || String(err);
@@ -4979,6 +4987,92 @@ async function uploadStorePhoto(storeId, input){
     }
     showToast('❌ ' + msg);
   }
+}
+
+// ─── スタンプ付与（既存 localStorage stamps_${id} 方式に乗せる）──
+// チェックイン=+1 / 写真投稿=+2。店舗なし投稿は stamps_free に加算。
+function _addStamps(storeId, n){
+  try {
+    const key = (storeId === null || storeId === undefined || storeId === '__free__')
+      ? 'stamps_free'
+      : `stamps_${storeId}`;
+    const cur = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    const next = cur + n;
+    localStorage.setItem(key, String(next));
+    try { renderStampCard(); } catch(e){}
+    return next;
+  } catch(e){ console.warn('[stamp]', e); return 0; }
+}
+
+// ─── 投稿完了シート ───────────────────────────────────────────
+// 写真投稿成功時に表示。店舗投稿なら混雑更新チップ＋Mate募集を提案。
+let _postDoneStoreId = null;
+function showPostDoneSheet(storeId, isFree){
+  const sheet = document.getElementById('postDoneSheet');
+  if(!sheet){
+    // フォールバック：シート要素が無ければ従来トースト
+    showToast(isFree ? '投稿しました 📷' : '写真を投稿しました 📷');
+    return;
+  }
+  _postDoneStoreId = isFree ? null : storeId;
+
+  if(isFree){
+    sheet.innerHTML = `
+      <div class="sheet-handle"></div>
+      <div style="text-align:center;padding-top:6px">
+        <div style="font-size:36px;line-height:1">📷</div>
+        <div style="font-size:18px;font-weight:900;margin-top:6px">投稿完了！　<span style="color:var(--brand)">⭐ スタンプ +1</span></div>
+        <div style="font-size:13px;color:var(--sub);margin-top:6px">タイムラインに表示されました</div>
+        <button onclick="closeSheets()" style="width:100%;margin-top:22px;padding:14px;background:var(--grad);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer">閉じる</button>
+      </div>`;
+  } else {
+    const s = STORES.find(x=>String(x.id)===String(storeId));
+    const name = s ? s.name : 'このお店';
+    sheet.innerHTML = `
+      <div class="sheet-handle"></div>
+      <div style="text-align:center;padding-top:6px">
+        <div style="font-size:36px;line-height:1">📷</div>
+        <div style="font-size:18px;font-weight:900;margin-top:6px">投稿完了！　<span style="color:var(--brand)">⭐ スタンプ +2</span></div>
+      </div>
+      <div style="font-size:14px;font-weight:800;margin-top:20px;text-align:center">${name}、いまどんな感じ？</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="postDoneSetCong(20)" style="flex:1;padding:13px 4px;border-radius:14px;border:1.8px solid #2ecc71;background:#fff;color:#2ecc71;font-size:13px;font-weight:800;cursor:pointer">🟢空いてる</button>
+        <button onclick="postDoneSetCong(55)" style="flex:1;padding:13px 4px;border-radius:14px;border:1.8px solid #f39c12;background:#fff;color:#f39c12;font-size:13px;font-weight:800;cursor:pointer">🟡普通</button>
+        <button onclick="postDoneSetCong(85)" style="flex:1;padding:13px 4px;border-radius:14px;border:1.8px solid #e74c3c;background:#fff;color:#e74c3c;font-size:13px;font-weight:800;cursor:pointer">🔴混んでる</button>
+      </div>
+      <button onclick="postDoneRecruit()" style="width:100%;margin-top:14px;padding:14px;background:#fff;color:var(--brand);border:1.8px solid var(--brand);border-radius:14px;font-size:15px;font-weight:800;cursor:pointer">📣 この店でMate募集</button>
+      <button onclick="closeSheets()" style="width:100%;margin-top:10px;padding:12px;background:transparent;color:var(--muted);border:none;font-size:14px;font-weight:700;cursor:pointer">閉じる</button>`;
+  }
+
+  const ov = document.getElementById('postDoneOverlay');
+  if(ov){ ov.classList.add('open'); document.body.style.overflow='hidden'; }
+}
+
+// 投稿完了シートの混雑チップ → 既存の混雑更新フローに乗せる
+function postDoneSetCong(value){
+  const id = _postDoneStoreId;
+  if(id === null || id === undefined){ closeSheets(); return; }
+  // 既存 setCong と同じローカル更新（数値IDキー・再描画・トースト込み）
+  if(typeof setCong === 'function'){
+    setCong(Number(id), value);
+  } else {
+    cong[id] = value;
+  }
+  // Firestore へも反映（既存シグネチャ writeCongestionToFirestore(storeId, value)）
+  try { writeCongestionToFirestore(String(id), value); } catch(e){ console.warn(e); }
+  closeSheets();
+}
+
+// 投稿完了シート → この店プリセットでMate募集シートを開く
+function postDoneRecruit(){
+  const id = _postDoneStoreId;
+  closeSheets();
+  if(id === null || id === undefined){
+    if(typeof openRecruitSheet === 'function') openRecruitSheet();
+    return;
+  }
+  if(typeof recruitForStore === 'function') recruitForStore(Number(id));
+  else if(typeof openRecruitSheet === 'function') openRecruitSheet();
 }
 
 // 詳細シート内の写真サムネイル表示
@@ -5650,7 +5744,7 @@ function submitListing(){ closeSheets(); showToast("📩 申込を受け付け�
 function closeSheets(){
   ["detailOverlay","listingOverlay","moodSettingsOverlay","settingsOverlay",
    "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay",
-   "qrOverlay","adInquiryOverlay","photoViewerOverlay","storePickerOverlay","recruitOverlay"]
+   "qrOverlay","adInquiryOverlay","photoViewerOverlay","storePickerOverlay","recruitOverlay","postDoneOverlay"]
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove("open"); });
   document.body.style.overflow="";
   curDetail=null;
@@ -6237,13 +6331,16 @@ function renderStampCard() {
     return { store: s, count };
   }).filter(x => x.count > 0);
 
-  if(storeStamps.length === 0) {
+  // 店舗なし投稿のスタンプ
+  const freeStamps = parseInt(localStorage.getItem('stamps_free') || '0', 10) || 0;
+
+  if(storeStamps.length === 0 && freeStamps === 0) {
     el.innerHTML = `
       <div class="lv-section-label">スタンプカード</div>
       <div style="background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);text-align:center;color:var(--muted)">
         <div style="font-size:24px;margin-bottom:6px">🍽️</div>
         <div style="font-size:13px;font-weight:600;margin-bottom:2px">まだスタンプなし</div>
-        <div style="font-size:11px">QRチェックインするとスタンプが貯まります</div>
+        <div style="font-size:11px">写真投稿(+2)・QRチェックイン(+1)でスタンプが貯まります</div>
       </div>
     `;
     return;
@@ -6268,9 +6365,29 @@ function renderStampCard() {
     `;
   }).join('');
 
+  // 店舗なし投稿のスタンプカード
+  let freeCard = '';
+  if(freeStamps > 0){
+    const filled = freeStamps % 10 === 0 ? 10 : freeStamps % 10;
+    const stars = Array.from({length:10}, (_, i) => `<span style="font-size:16px">${i < filled ? '⭐' : '☆'}</span>`).join('');
+    const next = 10 - filled;
+    freeCard = `
+      <div style="background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border);margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700">📷 タイムライン投稿</div>
+          <div style="font-size:11px;color:var(--muted)">計${freeStamps}個</div>
+        </div>
+        <div style="letter-spacing:2px;margin-bottom:6px">${stars}</div>
+        <div style="font-size:11px;color:${next===0?'var(--brand)':'var(--sub)'}">
+          ${next === 0 ? '🎉 10個達成！' : `あと${next}個でコンプリート！`}
+        </div>
+      </div>
+    `;
+  }
+
   el.innerHTML = `
     <div class="lv-section-label">スタンプカード</div>
-    ${cards}
+    ${cards}${freeCard}
   `;
 }
 
@@ -8406,9 +8523,12 @@ async function uploadFreePhoto(blobs){
       reports: 0,
       hidden: false
     });
-    showToast('投稿しました 📷');
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     renderFriendFeed();
+    // 店舗なし投稿はスタンプ +1
+    _addStamps('__free__', 1);
+    // 投稿完了シート（混雑更新なし版）
+    showPostDoneSheet(null, true);
   } catch(e){
     console.error('[FreeUpload]', e);
     showToast('❌ アップロード失敗');
