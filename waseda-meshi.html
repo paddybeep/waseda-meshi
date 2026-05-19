@@ -1956,36 +1956,32 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 <!-- HOME -->
 <div class="view active" id="viewHome">
-  <!-- 🔥 ストリーク -->
-  <div id="streakBadge" style="display:none;background:linear-gradient(135deg,#FF6B35,#F7931E);color:#fff;border-radius:24px;padding:6px 14px;font-size:13px;font-weight:800;margin:8px 14px 0;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(247,147,30,0.4);width:fit-content">
+
+  <!-- ① 募集CTA -->
+  <div style="padding:20px 16px 8px;text-align:center">
+    <div style="font-size:19px;font-weight:900;margin-bottom:4px">今ひま？空きコマある？</div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:14px">飯いこ、と友達に募集しよう</div>
+    <button onclick="openRecruitSheet()" style="width:100%;padding:16px;background:var(--grad);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(140,21,21,0.35)">
+      🍚 飯いこ、と募集する
+    </button>
+  </div>
+
+  <!-- 🔥 ストリーク（小さく） -->
+  <div id="streakBadge" style="display:none;background:linear-gradient(135deg,#FF6B35,#F7931E);color:#fff;border-radius:24px;padding:5px 12px;font-size:12px;font-weight:800;margin:8px 16px 0;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(247,147,30,0.35);width:fit-content">
     🔥 <span id="streakDays">0</span>日連続投稿中
   </div>
-  <!-- 🔴 LIVE フィード -->
-  <div id="liveFeedSection" style="background:linear-gradient(135deg,#FFF5F5,#FCEAEA);padding:12px 14px;border-bottom:1px solid var(--border);display:none">
-    <div style="font-size:12px;font-weight:800;color:var(--brand);margin-bottom:8px;letter-spacing:0.5px">
-      🔴 LIVE ・ 今ココで食べてる
-    </div>
-    <div id="liveFeedRow" style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none"></div>
+
+  <!-- ② 🔴 いま飯募集中 -->
+  <div id="recruitListSection" style="padding:14px 16px 8px">
+    <div style="font-size:13px;font-weight:800;color:var(--brand);margin-bottom:10px">🔴 いま飯募集中</div>
+    <div id="recruitList"></div>
   </div>
-  <!-- 🔥 ホットなお店 -->
-  <div id="hotStoresBar" style="background:#fff;padding:10px 14px;border-bottom:1px solid var(--border);display:none">
-    <div style="font-size:12px;font-weight:800;color:#e74c3c;margin-bottom:6px">🔥 今日のホットな店</div>
-    <div id="hotStoresList" style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none"></div>
+
+  <!-- ③ 🟢 いま空いてる店 -->
+  <div id="emptyStoresSection" style="padding:8px 16px 24px">
+    <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:10px">🟢 いま空いてる店</div>
+    <div id="emptyStoresList"></div>
   </div>
-  <!-- 保存したお店ストーリー列（インスタ風） -->
-  <div class="stories-wrap" id="savedStoriesRow" style="display:none"></div>
-  <!-- 今すぐ入れるバナー -->
-  <div id="quickEntryBanner" style="padding:8px 14px 0"></div>
-  <!-- ムードフィルター列 -->
-  <div class="mood-row-wrap" style="display:flex;align-items:center;gap:8px;padding-right:12px">
-    <div class="mood-row" id="moodRow" style="flex:1;overflow-x:auto;scrollbar-width:none"></div>
-    <button class="mood-customize-btn" onclick="openMoodSettings()" title="カスタマイズ">⚙️</button>
-  </div>
-  <div class="feed-filter-bar" id="feedFilterBar">
-    <span class="ffb-label" id="feedFilterLabel"></span>
-    <button class="ffb-clear" onclick="clearMoodFilter()">✕ 解除</button>
-  </div>
-  <div class="feed" id="feed"></div>
 </div>
 
 <!-- SEARCH -->
@@ -2125,6 +2121,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 <!-- QRシート -->
 <div class="sheet-overlay" id="qrOverlay" onclick="onBgClick(event,'qrOverlay')">
   <div class="sheet" id="qrSheet" style="padding:20px 24px 32px;text-align:center"></div>
+</div>
+
+<!-- 飯募集シート -->
+<div class="sheet-overlay" id="recruitOverlay" onclick="onBgClick(event,'recruitOverlay')">
+  <div class="sheet" id="recruitSheet" style="padding:0 20px 28px"></div>
 </div>
 
 <!-- MAP -->
@@ -2494,8 +2495,8 @@ function startFirestoreListeners(){
         if(data.menu         !== undefined) ownerData[s.id].menu         = data.menu;
         if(data.photoUrl     !== undefined) ownerData[s.id].photoUrl     = data.photoUrl;
         if(data.likedBy      !== undefined) ownerData[s.id].likedBy      = data.likedBy;
-        // フィードを再描画（ホームが表示中のとき）
-        if(document.getElementById('viewHome')?.classList.contains('active')) renderFeed();
+        // ホーム再描画（表示中のとき）
+        if(document.getElementById('viewHome')?.classList.contains('active')){ renderFeed(); renderEmptyStores(); }
         if(document.getElementById('viewSearch')?.classList.contains('active')) showSearchResults(false);
       }
     }, err => console.warn('Firestore listen error:', err));
@@ -3487,6 +3488,7 @@ function setMood(id){
   renderFeed();
   const bar = document.getElementById("feedFilterBar");
   const lbl = document.getElementById("feedFilterLabel");
+  if(!bar || !lbl) return;
   if(activeMoods.size > 0){
     const labels = [...activeMoods].map(mid=>{ const m=MOODS.find(x=>x.id===mid); return m?m.emoji+m.label:''; }).join(' · ');
     lbl.textContent = labels;
@@ -3495,7 +3497,7 @@ function setMood(id){
     bar.classList.remove("visible");
   }
 }
-function clearMoodFilter(){ activeMoods.clear(); renderStories(); renderFeed(); document.getElementById("feedFilterBar").classList.remove("visible"); }
+function clearMoodFilter(){ activeMoods.clear(); renderStories(); renderFeed(); document.getElementById("feedFilterBar")?.classList.remove("visible"); }
 
 // ─── GENRE CHIPS (search tab only) ───────────────────────────
 function renderGenreChips(){ /* no-op */ }
@@ -3558,9 +3560,122 @@ let _adIdx = 0;
 function getAdCard() { return AD_CARDS[(_adIdx++) % AD_CARDS.length]; }
 const AD_CARD = AD_CARDS[0];
 
+// ═══ 新ホーム：人ベースの飯募集 ═══════════════════════════════
+const RECRUIT_ZONES  = ['早稲田','戸山','西早稲田','高田馬場','どこでも'];
+const RECRUIT_GENRES = ['ラーメン','定食','カフェ','安いとこ','なんでも'];
+const RECRUIT_WHENS  = ['今すぐ','1限後','2限後','3限後','4限後','5限後'];
+let _recruitSel = { zone:'どこでも', genre:'なんでも', when:'今すぐ' };
+
+function openRecruitSheet(){
+  _recruitSel = {
+    zone:  myRecruitZone  || 'どこでも',
+    genre: myRecruitGenre || 'なんでも',
+    when:  myRecruitWhen  || '今すぐ'
+  };
+  renderRecruitSheet();
+  const ov = document.getElementById('recruitOverlay');
+  if(ov){ ov.classList.add('open'); document.body.style.overflow='hidden'; }
+}
+
+function renderRecruitSheet(){
+  const sheet = document.getElementById('recruitSheet');
+  if(!sheet) return;
+  const chips = (arr, key) => arr.map(v =>
+    `<button onclick="_pickRecruit('${key}','${v}')" style="padding:8px 14px;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid ${_recruitSel[key]===v?'var(--brand)':'var(--border)'};background:${_recruitSel[key]===v?'var(--brand-light)':'#fff'};color:${_recruitSel[key]===v?'var(--brand)':'var(--sub)'}">${v}</button>`
+  ).join('');
+  const label = (txt) => `<div style="font-size:13px;font-weight:800;margin:18px 0 8px">${txt}</div>`;
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div style="font-size:18px;font-weight:900;margin-top:4px">🍚 飯いこ、と募集</div>
+    <div style="font-size:12px;color:var(--sub);margin-top:2px">条件を選んで友達に声かけよう</div>
+    ${label('📍 場所')}
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${chips(RECRUIT_ZONES,'zone')}</div>
+    ${label('🍜 ジャンル')}
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${chips(RECRUIT_GENRES,'genre')}</div>
+    ${label('⏰ いつ')}
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${chips(RECRUIT_WHENS,'when')}</div>
+    <button onclick="submitRecruit()" style="width:100%;margin-top:24px;padding:15px;background:var(--grad);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(140,21,21,0.35)">📣 募集する</button>
+  `;
+}
+
+function _pickRecruit(key, val){ _recruitSel[key] = val; renderRecruitSheet(); }
+
+function submitRecruit(){
+  const status = _recruitSel.when === '今すぐ' ? 'now' : 'later';
+  closeSheets();
+  setLunchStatus(status, { zone:_recruitSel.zone, genre:_recruitSel.genre, when:_recruitSel.when });
+  showToast('📣 募集しました！');
+  renderRecruitList();
+}
+
+function renderRecruitList(){
+  const el = document.getElementById('recruitList');
+  if(!el) return;
+  const recruiting = (friendsList||[]).filter(f => f.status==='now' || f.status==='later');
+  if(recruiting.length === 0){
+    el.innerHTML = `<div style="padding:24px 12px;text-align:center;color:var(--sub)">
+      <div style="font-size:13px;font-weight:700">まだ誰も募集してません</div>
+      <div style="font-size:12px;margin-top:4px">一番乗りしよう👆</div>
+    </div>`;
+    return;
+  }
+  recruiting.sort((a,b) => (b.recruitAt||0) - (a.recruitAt||0));
+  el.innerHTML = recruiting.map(f => {
+    const icon  = f.icon || (f.name? f.name[0] : '?');
+    const color = f.color || '#8C1515';
+    const zone  = f.recruitZone  || '早稲田';
+    const genre = f.recruitGenre || 'なんでも';
+    const when  = f.recruitWhen  || (f.status==='now'?'今すぐ':'あとで');
+    const ago   = f.recruitAt ? _recruitAgo(f.recruitAt) : '';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border)">
+      <div style="width:44px;height:44px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:800">${f.name||'友達'}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:2px">📍${zone}　🍜${genre}　⏰${when}</div>
+        ${ago?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${ago}</div>`:''}
+      </div>
+      <button onclick="openChat('${f.code}')" style="padding:9px 18px;background:var(--grad);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">合流</button>
+    </div>`;
+  }).join('');
+}
+
+function _recruitAgo(ms){
+  const min = Math.floor((Date.now()-ms)/60000);
+  if(min < 1) return 'たった今';
+  if(min < 60) return min+'分前';
+  return Math.floor(min/60)+'時間前';
+}
+
+function renderEmptyStores(){
+  const el = document.getElementById('emptyStoresList');
+  if(!el) return;
+  const list = STORES
+    .filter(s => isStoreOpenNow(s))
+    .slice()
+    .sort((a,b) => (cong[a.id]??50) - (cong[b.id]??50))
+    .slice(0,4);
+  if(list.length === 0){
+    el.innerHTML = `<div style="padding:20px 12px;text-align:center;color:var(--sub);font-size:13px">いま営業中の店が見つかりません</div>`;
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const p = cong[s.id] ?? 50;
+    const congLabel = p < 30 ? '🟢空いてる' : p < 70 ? '🟡ふつう' : '🔴混雑';
+    const walk = 3 + (s.id % 8); // 概算徒歩分
+    return `<div onclick="openDetail(${s.id})" style="cursor:pointer;margin-bottom:14px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div style="width:100%;height:140px;background:#eee url('${storePhotoUrl(s.id,s.genre,600,400)}') center/cover"></div>
+      <div style="padding:10px 12px">
+        <div style="font-size:15px;font-weight:800">${s.name}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px">${congLabel}　🚶${walk}分　💰${s.price||''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderFeed(){
-  const list=filteredStores().slice().sort((a,b)=>(PLAN_ORDER[a.plan]||2)-(PLAN_ORDER[b.plan]||2));
   const el=document.getElementById("feed");
+  if(!el) return; // ホーム再構成で feed 要素は撤去済み
+  const list=filteredStores().slice().sort((a,b)=>(PLAN_ORDER[a.plan]||2)-(PLAN_ORDER[b.plan]||2));
   if(!list.length){
     el.innerHTML=`<div class="empty-state"><div class="e">🍽️</div><p>該当なし</p></div>`;
     renderQuickEntryBanner([]);
@@ -3617,6 +3732,7 @@ function filterByLowCong() {
   _lowCongFilter = !_lowCongFilter;
   const feedEl = document.getElementById('feed');
   const banner = document.getElementById('quickEntryBanner');
+  if(!feedEl) return; // ホーム再構成で feed 撤去済み
   if(_lowCongFilter) {
     const openStores = STORES
       .filter(s => cong[s.id] < 40 && isStoreOpenNow(s))
@@ -5016,6 +5132,7 @@ function switchTab(tab){
     document.getElementById(TABS[k]).classList.toggle("active",k===tab);
     document.getElementById(NAV_IDS[k]).classList.toggle("active",k===tab);
   });
+  if(tab==="home"){ renderRecruitList(); renderEmptyStores(); }
   if(tab==="map"){ initMap(); setTimeout(()=>map&&map.invalidateSize(),120); }
   if(tab==="lunch"){ renderLunchTab(); }
 }
@@ -5269,7 +5386,7 @@ function submitListing(){ closeSheets(); showToast("📩 申込を受け付け�
 function closeSheets(){
   ["detailOverlay","listingOverlay","moodSettingsOverlay","settingsOverlay",
    "lunchMateOverlay","applyOverlay","jobFormOverlay","storeSelectOverlay","hoursOverlay","chatOverlay","menuOverlay",
-   "qrOverlay","adInquiryOverlay","photoViewerOverlay","storePickerOverlay"]
+   "qrOverlay","adInquiryOverlay","photoViewerOverlay","storePickerOverlay","recruitOverlay"]
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove("open"); });
   document.body.style.overflow="";
   curDetail=null;
@@ -5734,6 +5851,7 @@ let myCode = (()=>{
 })();
 let myLunchName   = localStorage.getItem('waseMeshiName') || '';
 let myLunchStatus = null; // null | 'now' | 'later'
+let myRecruitZone = null, myRecruitGenre = null, myRecruitWhen = null, myRecruitAt = null;
 let friendsList   = JSON.parse(localStorage.getItem('waseMeshiFriends') || '[]');
 // friendsList = [{ code, name, dept, status, color }, ...]
 
@@ -6006,10 +6124,19 @@ function resetLunchName(){
 let myStatusExpireAt = null;
 let myStatusTimerId  = null;
 
-function setLunchStatus(status){
+function setLunchStatus(status, recruit){
   if(!myLunchName){ showToast(t('lunchToastNeedName')); return; }
   logEvent('mate_status_set', { status: status||'off' });
   myLunchStatus = status;
+  // 募集パラメータ（飯募集シートから）
+  if(recruit){
+    myRecruitZone  = recruit.zone  || null;
+    myRecruitGenre = recruit.genre || null;
+    myRecruitWhen  = recruit.when  || null;
+    myRecruitAt    = Date.now();
+  } else if(!status){
+    myRecruitZone = myRecruitGenre = myRecruitWhen = myRecruitAt = null;
+  }
   // 30分タイマー
   if(myStatusTimerId){ clearInterval(myStatusTimerId); myStatusTimerId=null; }
   if(status){
@@ -6021,10 +6148,15 @@ function setLunchStatus(status){
   const btn = document.getElementById('lunchmateBadgeBtn');
   if(btn) btn.style.display = myLunchStatus ? 'flex' : 'none';
   renderLunchTab();
+  if(document.getElementById('viewHome')?.classList.contains('active')) renderRecruitList();
   showToast(status==='now'?t('lunchToastNow'):status==='later'?t('lunchToastLater'):t('lunchToastPrivate'));
   if(myLunchName){
     db.collection('users').doc(myCode).set({
       status: myLunchStatus,
+      recruitZone:  myRecruitZone  ?? null,
+      recruitGenre: myRecruitGenre ?? null,
+      recruitWhen:  myRecruitWhen  ?? null,
+      recruitAt:    myRecruitAt ? firebase.firestore.Timestamp.fromMillis(myRecruitAt) : null,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true }).catch(e => console.warn(e));
   }
@@ -6117,8 +6249,13 @@ function startFriendListener(code){
     if(data.name)   friendsList[idx].name   = data.name;
     if(data.icon)   friendsList[idx].icon   = data.icon;
     if(data.status !== undefined) friendsList[idx].status = data.status;
+    if(data.recruitZone  !== undefined) friendsList[idx].recruitZone  = data.recruitZone;
+    if(data.recruitGenre !== undefined) friendsList[idx].recruitGenre = data.recruitGenre;
+    if(data.recruitWhen  !== undefined) friendsList[idx].recruitWhen  = data.recruitWhen;
+    if(data.recruitAt    !== undefined) friendsList[idx].recruitAt    = (data.recruitAt?.toMillis?.() || data.recruitAt);
     saveFriends();
     if(document.getElementById('viewLunch')?.classList.contains('active')) renderLunchTab();
+    if(document.getElementById('viewHome')?.classList.contains('active')) renderRecruitList();
   }, e => console.warn('friend listener error:', e));
 }
 
@@ -8085,6 +8222,8 @@ async function reportFreePhoto(id){
 // ─── INIT ────────────────────────────────────────────────────
 renderStories();
 renderFeed();
+renderRecruitList();
+renderEmptyStores();
 renderSituationGrid();
 renderPersonRow();
 renderGenreGrid();
