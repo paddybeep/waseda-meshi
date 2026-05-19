@@ -1197,7 +1197,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   margin: 10px auto 0;
 }
 .sheet-visual {
-  height: 240px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1244,7 +1244,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 }
 .sheet-body { padding: 16px 18px 0; }
 .sheet-genre { font-size: 12px; color: var(--sub); font-weight: 700; margin-bottom: 2px; }
-.sheet-name { font-size: 22px; font-weight: 900; margin-bottom: 12px; }
+.sheet-name { font-size: 23px; font-weight: 900; margin-bottom: 2px; }
 
 /* congestion in sheet */
 .cong-section {
@@ -1360,9 +1360,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 .stag { padding: 5px 11px; background: var(--bg); color: var(--sub); border-radius: 20px; font-size: 12px; font-weight: 600; }
 
 .section-divider {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
-  color: var(--text);
+  color: var(--sub);
   margin: 24px 0 12px;
   display: flex;
   align-items: center;
@@ -3926,8 +3926,32 @@ function toggleSave(id){
   saves[id]=!saves[id];
   const btn=document.getElementById("save-"+id);
   if(btn) btn.textContent=saves[id]?'🔖':'🏷️';
+  // 詳細シート内の保存ボタンも更新
+  const dbtn=document.getElementById("detail-save-btn-"+id);
+  if(dbtn){
+    dbtn.innerHTML=`${saves[id]?'🔖':'🏷️'} 保存`;
+    dbtn.style.background=saves[id]?'var(--brand-light)':'var(--bg)';
+    dbtn.style.borderColor=saves[id]?'var(--brand)':'var(--border)';
+    dbtn.style.color=saves[id]?'var(--brand)':'var(--sub)';
+  }
   renderStories();
   showToast(saves[id]?'🔖 保存しました':'保存を解除しました');
+}
+
+// 詳細シートからのシェア（チャット非依存）
+function shareStoreSimple(id){
+  const s=STORES.find(x=>x.id===id);
+  if(!s) return;
+  const p=cong[s.id];
+  const txt=`🏪 ${s.name}（${s.genre}・${s.price}）\n${cEmoji(p)} ${cLabel(p)}・${s.hours}`;
+  logEvent('store_share', { store_id:id, store_name:s.name });
+  if(navigator.share){
+    navigator.share({ title:s.name, text:txt }).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>showToast('📤 店情報をコピーしました')).catch(()=>showToast('📤 '+s.name));
+  } else {
+    showToast('📤 '+s.name);
+  }
 }
 
 // ─── 友達コメント ─────────────────────────────────────────────
@@ -5204,6 +5228,66 @@ function switchTab(tab){
 // ─── DETAIL SHEET ────────────────────────────────────────────
 let curDetail=null;
 
+// この店を指定して「行く」処理（チェックイン的フィードバック）
+function goToStore(id){
+  const s=STORES.find(x=>x.id===id);
+  if(!s) return;
+  logEvent('store_go', { store_id:id, store_name:s.name });
+  const mapUrl="https://www.google.com/maps/search/"+encodeURIComponent(s.map);
+  showToast('🍚 '+s.name+'へ行ってきます！');
+  window.open(mapUrl,'_blank');
+}
+
+// この店の条件をプリセットしてMate募集シートを開く
+function recruitForStore(id){
+  const s=STORES.find(x=>x.id===id);
+  if(s){
+    // 店ジャンルが募集ジャンル候補にあれば採用、なければ「なんでも」
+    myRecruitGenre = RECRUIT_GENRES.includes(s.genre) ? s.genre : (myRecruitGenre||null);
+    // エリア推定（住所から）
+    const addr = s.addr||'';
+    if(addr.includes('西早稲田')) myRecruitZone = '西早稲田';
+    else if(addr.includes('戸山')) myRecruitZone = '戸山';
+    else if(addr.includes('高田馬場')) myRecruitZone = '高田馬場';
+    else if(addr.includes('早稲田')) myRecruitZone = '早稲田';
+  }
+  openRecruitSheet();
+}
+
+// 詳細シート上部の重要ステータス行を組み立てる
+function detailStatusRow(s){
+  const id=s.id;
+  const items=[];
+  // ① 混雑
+  const p=cong[id];
+  if(typeof p==='number'){
+    const c=cColor(p);
+    items.push(`<span style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:${c}">${cEmoji(p)}<span>${cLabel(p)}</span></span>`);
+  }
+  // ② 徒歩（既存の概算ロジックに合わせる）
+  const walk = 3 + (id % 8);
+  items.push(`<span style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:var(--sub)">🚶<span>${walk}分</span></span>`);
+  // ③ 価格
+  if(s.price){
+    items.push(`<span style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:var(--sub)">💰<span>${s.price}</span></span>`);
+  }
+  // ④ 一人OK（appealsに「一人飯OK」があれば）
+  if(Array.isArray(s.appeals) && s.appeals.some(a=>a.includes('一人'))){
+    items.push(`<span style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:var(--sub)">👤<span>一人OK</span></span>`);
+  }
+  // ⑤ 友達（この店に写真を投稿した友達がいれば）
+  try {
+    const photos = (typeof storePhotoMap!=='undefined' && storePhotoMap) ? (storePhotoMap[String(id)]||[]) : [];
+    const friendCodes = new Set((typeof friendsList!=='undefined'?friendsList:[]).map(f=>f.code));
+    const friendIds = new Set();
+    photos.forEach(ph=>{ if(ph.userId && friendCodes.has(ph.userId)) friendIds.add(ph.userId); });
+    if(friendIds.size>0){
+      items.push(`<span style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:var(--brand)">👥<span>友達${friendIds.size}人</span></span>`);
+    }
+  } catch(e){}
+  return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:10px 0 16px">${items.join('')}</div>`;
+}
+
 function openDetail(id){
   curDetail=id;
   const s=STORES.find(x=>x.id===id);
@@ -5242,16 +5326,34 @@ function openDetail(id){
       <button class="sheet-close" onclick="closeSheets()">✕</button>
     </div>
     <div class="sheet-body">
-      <div class="sheet-genre">${s.genre}${s.plan==='プレミアム'?'<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">プレミアム</span>':s.plan==='スタンダード'?'<span style="background:linear-gradient(135deg,#7CB9E8,#4169E1);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">スタンダード</span>':''}</div>
+      <!-- ① 店名（大きく） -->
+      <div class="sheet-genre" style="margin-bottom:2px">${s.genre}${s.plan==='プレミアム'?'<span style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">プレミアム</span>':s.plan==='スタンダード'?'<span style="background:linear-gradient(135deg,#7CB9E8,#4169E1);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px">スタンダード</span>':''}</div>
       <div class="sheet-name">${s.name}</div>
+
+      <!-- ② 重要ステータス行（主役） -->
+      ${detailStatusRow(s)}
+
+      <!-- ③ アクションボタン2つ（CTA） -->
+      <div style="display:flex;gap:10px;margin-bottom:22px">
+        <button onclick="goToStore(${id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:15px 0;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(140,21,21,0.32)">🍚 行く</button>
+        <button onclick="recruitForStore(${id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#fff;color:var(--brand);border:1.8px solid var(--brand);border-radius:14px;padding:15px 0;font-size:16px;font-weight:800;cursor:pointer">📣 Mate募集</button>
+      </div>
+
+      <!-- ===== ここから下は二次情報 ===== -->
 
       <!-- 混雑 -->
       <div id="congSection"></div>
 
-      <!-- いいねボタン -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-        <button id="detail-like-btn-${id}" onclick="toggleLike(${id})" style="display:flex;align-items:center;gap:6px;background:${myLikes.has(id)?'var(--brand-light)':'var(--bg)'};border:1.5px solid ${myLikes.has(id)?'var(--brand)':'var(--border)'};border-radius:20px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;color:${myLikes.has(id)?'var(--brand)':'var(--sub)'};transition:all 0.15s">
-          ${myLikes.has(id)?'❤️':'🤍'} いいね${(()=>{ const ns=friendLikeNames(id).filter(n=>n!=='自分'); return ns.length>0?`<span style="font-size:11px;opacity:0.8"> ・${ns.join('、')}もいいね</span>`:''; })()}
+      <!-- 保存・いいね・シェア -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button id="detail-like-btn-${id}" onclick="toggleLike(${id})" style="display:flex;align-items:center;gap:6px;background:${myLikes.has(id)?'var(--brand-light)':'var(--bg)'};border:1.5px solid ${myLikes.has(id)?'var(--brand)':'var(--border)'};border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:${myLikes.has(id)?'var(--brand)':'var(--sub)'};transition:all 0.15s">
+          ${myLikes.has(id)?'❤️':'🤍'} いいね${(()=>{ const ns=friendLikeNames(id).filter(n=>n!=='自分'); return ns.length>0?`<span style="font-size:11px;opacity:0.8"> ・${ns.join('、')}</span>`:''; })()}
+        </button>
+        <button onclick="toggleSave(${id})" id="detail-save-btn-${id}" style="display:flex;align-items:center;gap:6px;background:${saves[id]?'var(--brand-light)':'var(--bg)'};border:1.5px solid ${saves[id]?'var(--brand)':'var(--border)'};border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:${saves[id]?'var(--brand)':'var(--sub)'}">
+          ${saves[id]?'🔖':'🏷️'} 保存
+        </button>
+        <button onclick="shareStoreSimple(${id})" style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1.5px solid var(--border);border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--sub)">
+          📤 シェア
         </button>
       </div>
 
