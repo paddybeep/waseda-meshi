@@ -288,6 +288,56 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
   margin-bottom: 14px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
+/* ── 募集ボード（メイトタブの主役） ── */
+.lv-board-title {
+  font-size: 16px; font-weight: 900; color: var(--text);
+  margin: 4px 2px 12px;
+}
+.lv-recruit-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 14px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+.lv-recruit-av {
+  width: 48px; height: 48px; border-radius: 50%;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800; flex-shrink: 0;
+}
+.lv-recruit-name { font-size: 15px; font-weight: 800; color: var(--text); }
+.lv-recruit-meta { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lv-recruit-ago { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.lv-join-btn {
+  padding: 11px 20px; background: var(--grad); color: #fff;
+  border: none; border-radius: 22px; font-size: 14px; font-weight: 800;
+  cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(140,21,21,0.3);
+}
+.lv-join-btn:active { transform: scale(0.95); }
+.lv-board-empty {
+  background: var(--surface); border-radius: 16px;
+  padding: 32px 18px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.lv-board-empty-emoji { font-size: 34px; margin-bottom: 8px; }
+.lv-board-empty-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.lv-board-empty-sub { font-size: 12px; color: var(--sub); margin-top: 5px; }
+/* ── フレンド管理アコーディオン ── */
+.lv-accordion {
+  background: var(--surface); border-radius: 18px;
+  margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+.lv-acc-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px; background: none; border: none; cursor: pointer;
+}
+.lv-acc-label { font-size: 14px; font-weight: 800; color: var(--text); }
+.lv-acc-arrow { font-size: 13px; color: var(--muted); transition: transform 0.2s; }
+.lv-acc-arrow.open { transform: rotate(180deg); }
+.lv-acc-body { padding: 0 16px 16px; }
 .lv-section-title {
   font-size: 13px; font-weight: 800; color: var(--text);
   margin-bottom: 14px; letter-spacing: -0.2px;
@@ -2129,23 +2179,37 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
 
 <!-- LUNCH MATE TAB -->
 <div class="view" id="viewLunch">
-  <!-- 自分のステータスカード（sticky） -->
+  <!-- ① 自分のステータスカード（sticky） -->
   <div class="lv-my-card" id="lvMyCard"></div>
 
   <!-- スクロール本体 -->
   <div class="lv-wrap">
-    <!-- フレンドのタイムライン -->
+
+    <!-- ② 📣 みんなの募集ボード（主役） -->
+    <div id="lvBoardSection">
+      <div class="lv-board-title">📣 みんなの募集ボード</div>
+      <div id="lvRecruitBoard"></div>
+    </div>
+
+    <!-- ③ 📸 フレンドのタイムライン -->
     <div class="lv-section" id="friendFeedSection">
       <div class="lv-section-title">📸 フレンドのタイムライン</div>
       <div id="friendFeedList" style="display:flex;flex-direction:column;gap:14px"></div>
     </div>
-    <!-- フレンド一覧 -->
-    <div class="lv-section" id="lvFriendsSection">
-      <div class="lv-friends-header">
-        <span class="lv-section-title" style="margin-bottom:0" id="lvFriendsTitle">フレンド一覧</span>
+
+    <!-- ④ 👥 フレンド管理（アコーディオン） -->
+    <div class="lv-accordion" id="lvFriendsAcc">
+      <button class="lv-acc-head" onclick="toggleFriendsAcc()">
+        <span class="lv-acc-label">👥 <span id="lvFriendsTitle">フレンドを管理</span></span>
+        <span class="lv-acc-arrow" id="lvAccArrow">▾</span>
+      </button>
+      <div class="lv-acc-body" id="lvAccBody" style="display:none">
+        <!-- マイコード -->
+        <div id="lvMyCodeBlock"></div>
+        <!-- フレンド一覧 -->
+        <div id="lvAvatarRow" class="lv-avatar-row"></div>
+        <div id="lvFriendsList"></div>
       </div>
-      <div id="lvAvatarRow" class="lv-avatar-row"></div>
-      <div id="lvFriendsList"></div>
     </div>
 
     <!-- スタンプカード -->
@@ -3668,18 +3732,35 @@ function submitRecruit(){
   renderRecruitList();
 }
 
+// ホーム＋メイトタブ両方の募集セクションを描画（同じデータ・別レイアウト）
 function renderRecruitList(){
-  const el = document.getElementById('recruitList');
+  _renderRecruitInto('recruitList', false);   // ホーム：コンパクト
+  _renderRecruitInto('lvRecruitBoard', true); // メイトタブ：詳しい募集ボード
+}
+
+function _renderRecruitInto(elId, detailed){
+  const el = document.getElementById(elId);
   if(!el) return;
   const recruiting = (friendsList||[]).filter(f => f.status==='now' || f.status==='later');
+
   if(recruiting.length === 0){
-    el.innerHTML = `<div style="padding:24px 12px;text-align:center;color:var(--sub)">
-      <div style="font-size:13px;font-weight:700">まだ誰も募集してません</div>
-      <div style="font-size:12px;margin-top:4px">一番乗りしよう👆</div>
-    </div>`;
+    if(detailed){
+      el.innerHTML = `<div class="lv-board-empty">
+        <div class="lv-board-empty-emoji">🍚</div>
+        <div class="lv-board-empty-title">まだ誰も募集してへん</div>
+        <div class="lv-board-empty-sub">あなたが最初に投げてみよう 👆</div>
+      </div>`;
+    } else {
+      el.innerHTML = `<div style="padding:24px 12px;text-align:center;color:var(--sub)">
+        <div style="font-size:13px;font-weight:700">まだ誰も募集してません</div>
+        <div style="font-size:12px;margin-top:4px">一番乗りしよう👆</div>
+      </div>`;
+    }
     return;
   }
+
   recruiting.sort((a,b) => (b.recruitAt||0) - (a.recruitAt||0));
+
   el.innerHTML = recruiting.map(f => {
     const icon  = f.icon || (f.name? f.name[0] : '?');
     const color = f.color || '#8C1515';
@@ -3687,6 +3768,21 @@ function renderRecruitList(){
     const genre = f.recruitGenre || 'なんでも';
     const when  = f.recruitWhen  || (f.status==='now'?'今すぐ':'あとで');
     const ago   = f.recruitAt ? _recruitAgo(f.recruitAt) : '';
+
+    if(detailed){
+      // メイトタブ：大きく詳しい募集カード
+      return `<div class="lv-recruit-card">
+        <div class="lv-recruit-av" style="background:${color}">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="lv-recruit-name">${f.name||'友達'}</div>
+          <div class="lv-recruit-meta">⏰${when}　📍${zone}　🍜${genre}</div>
+          ${ago?`<div class="lv-recruit-ago">${ago}</div>`:''}
+        </div>
+        <button class="lv-join-btn" onclick="openChat('${f.code}')">合流する</button>
+      </div>`;
+    }
+
+    // ホーム：コンパクト
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 8px;border-radius:14px;margin-bottom:4px">
       <div style="width:44px;height:44px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -6047,39 +6143,21 @@ function renderLunchTab(){
 
   // ── 自分のステータスカード（sticky）は最初に必ず描画 ──
   _renderMyCard();
+  // ── 募集ボード（ホームと共通ロジック） ──
+  renderRecruitList();
   updateUnreadBadge();
   renderStampCard();
 
-  // ── フレンド一覧タイトル ──
+  // ── フレンド管理アコーディオンのラベル ──
   const titleEl = document.getElementById('lvFriendsTitle');
-  if(titleEl) titleEl.textContent = `フレンド一覧（${friendsList.length}人）`;
+  if(titleEl) titleEl.textContent = `フレンドを管理（${friendsList.length}人）`;
 
-  // ── アバター行（今すぐOKの人を上部に大きく表示） ──
+  // ── マイコード／フレンド追加ブロック（アコーディオン内） ──
+  _renderMyCodeBlock();
+
+  // ── アバター行は募集ボードと役割が重複するため非表示 ──
   const avatarRow = document.getElementById('lvAvatarRow');
-  if(avatarRow){
-    const nowAll = [
-      ...(myLunchStatus==='now' && myLunchName ? [{ name:myLunchName, icon:myLunchIcon, color:'#8C1515', isSelf:true }] : []),
-      ...friendsList.filter(f=>f.status==='now').map(f=>({ name:f.name, icon:f.name[0], color:f.color, isSelf:false }))
-    ];
-    if(nowAll.length > 0){
-      avatarRow.style.display = 'flex';
-      avatarRow.innerHTML = `
-        <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:8px;width:100%">
-          🟢 ${t('lunchNowOk')} · ${nowAll.length}人
-        </div>
-        ${nowAll.map(u=>`
-          <div class="lv-avatar-circle">
-            <div class="lv-avatar-ring ${u.isSelf?'lv-ring-self':'lv-ring-friend'}">
-              <div class="lv-avatar-inner" style="background:${u.color}">${u.icon}</div>
-            </div>
-            <div class="lv-avatar-name">${u.isSelf ? (lang==='en'?'You':'あなた') : u.name.length>4?u.name.slice(0,4)+'…':u.name}</div>
-          </div>`).join('')}
-      `;
-    } else {
-      avatarRow.style.display = 'none';
-      avatarRow.innerHTML = '';
-    }
-  }
+  if(avatarRow){ avatarRow.style.display = 'none'; avatarRow.innerHTML = ''; }
 
   // ── フレンドリスト ──
   const fl = document.getElementById('lvFriendsList');
@@ -6218,11 +6296,10 @@ function _renderMyCard(){
   const card = document.getElementById('lvMyCard');
   if(!card) return;
   const remain = _statusRemainMin();
-  const statusColor = myLunchStatus==='now'?'#2ecc71':myLunchStatus==='later'?'#f39c12':'rgba(255,255,255,0.4)';
-  const statusLabel = myLunchStatus==='now'?t('lunchStatusNow'):myLunchStatus==='later'?t('lunchStatusLater'):t('lunchStatusOff');
-  card.innerHTML = `
-    ${_googleBannerHTML()}
-    <!-- 行①：アイコン＋名前 -->
+  const recruiting = !!myLunchStatus;
+
+  // 行①：アイコン＋名前（編集は小さく残す）
+  const headRow = `
     <div class="lv-my-card-inner">
       <div class="lv-my-icon-wrap">
         <button class="lv-my-icon" onclick="openIconPicker()">${myLunchIcon}</button>
@@ -6233,8 +6310,7 @@ function _renderMyCard(){
           <div class="lv-my-name">${myLunchName}
             <span style="font-size:10px;opacity:0.7;font-weight:400;margin-left:4px;cursor:pointer" onclick="resetLunchName()">✏</span>
           </div>
-          <div class="lv-my-name-sub" style="color:${statusColor}">● ${statusLabel}${remain!==null?`<span style="opacity:0.75"> · ${lang==='en'?`${remain}min left`:`あと${remain}分`}</span>`:''}
-          </div>
+          <div class="lv-my-name-sub" style="opacity:0.8">アイコン・名前はタップで変更</div>
         ` : `
           <div class="lv-my-nick-row">
             <input id="lvNameInput" class="lv-my-nick-input" placeholder="${t('lunchNickPlaceholder')}" onkeydown="if(event.key==='Enter')saveLunchName()">
@@ -6243,29 +6319,70 @@ function _renderMyCard(){
         `}
       </div>
     </div>
+  `;
 
-    <!-- 行②：マイコード ＋ フレンド追加（同一行） -->
-    <div class="lv-code-add-row">
-      <div class="lv-code-mini">
-        <span class="lv-code-mini-key" style="font-size:11px;color:var(--muted)">コード</span>
-        <span class="lv-code-mini-val">${myCode}</span>
-        <button class="lv-code-mini-copy" onclick="copyMyCode()">${t('lunchCopy')}</button>
-        <button class="lv-code-mini-copy" onclick="openQRSheet()" style="background:var(--brand);color:#fff;border-color:var(--brand)">QR</button>
+  // 行②：主役 — 募集する / 募集中の内容
+  let mainBlock;
+  if(recruiting){
+    const zone  = myRecruitZone  || 'どこでも';
+    const genre = myRecruitGenre || 'なんでも';
+    const when  = myRecruitWhen  || (myLunchStatus==='now'?'今すぐ':'あとで');
+    mainBlock = `
+      <div style="background:rgba(255,255,255,0.16);border-radius:14px;padding:13px 14px;margin-top:12px">
+        <div style="font-size:12px;font-weight:800;color:#fff;opacity:0.95">📣 いま募集中${remain!==null?` · あと${remain}分`:''}</div>
+        <div style="font-size:13px;color:#fff;margin-top:6px;font-weight:600">⏰${when}　📍${zone}　🍜${genre}</div>
+        <button onclick="setLunchStatus(null)" style="margin-top:11px;width:100%;padding:10px;background:rgba(0,0,0,0.22);color:#fff;border:1px solid rgba(255,255,255,0.35);border-radius:11px;font-size:13px;font-weight:700;cursor:pointer">募集をやめる</button>
       </div>
-      <div class="lv-add-mini">
-        <input id="lvFriendCodeInput" class="lv-add-mini-input" placeholder="${lang==='en'?'Friend code':'コードを入力'}" maxlength="8"
-          onkeydown="if(event.key==='Enter')addFriend()">
-        <button class="lv-add-mini-btn" onclick="addFriend()" title="友達追加">+</button>
+    `;
+  } else {
+    mainBlock = `
+      <div style="margin-top:12px">
+        <div style="font-size:13px;color:#fff;opacity:0.92;font-weight:600;margin-bottom:9px;text-align:center">今ひま？空きコマある？</div>
+        <button onclick="openRecruitSheet()" style="width:100%;padding:15px;background:#fff;color:var(--brand);border:none;border-radius:14px;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.18)">
+          🍚 飯いこ、と募集する
+        </button>
       </div>
-    </div>
+    `;
+  }
 
-    <!-- 行③：ステータスpills -->
-    <div class="lv-my-status-pills">
-      <button class="lv-my-pill pill-now ${myLunchStatus==='now'?'active':''}" onclick="setLunchStatus('now')">${t('lunchStatusNow')}</button>
-      <button class="lv-my-pill pill-later ${myLunchStatus==='later'?'active':''}" onclick="setLunchStatus('later')">${t('lunchStatusLater')}</button>
-      <button class="lv-my-pill pill-off ${!myLunchStatus?'active':''}" onclick="setLunchStatus(null)">${t('lunchStatusOff')}</button>
+  card.innerHTML = `
+    ${_googleBannerHTML()}
+    ${headRow}
+    ${mainBlock}
+  `;
+}
+
+// マイコード／フレンド追加（フレンド管理アコーディオン内）
+function _renderMyCodeBlock(){
+  const el = document.getElementById('lvMyCodeBlock');
+  if(!el) return;
+  el.innerHTML = `
+    <div style="background:var(--bg);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted);font-weight:700">マイコード</span>
+        <span style="font-size:16px;font-weight:900;letter-spacing:2px;color:var(--brand)">${myCode}</span>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button onclick="copyMyCode()" style="padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">${t('lunchCopy')}</button>
+          <button onclick="openQRSheet()" style="padding:6px 12px;border:none;background:var(--brand);color:#fff;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">QR</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="lvFriendCodeInput" placeholder="${lang==='en'?'Friend code':'フレンドのコードを入力'}" maxlength="8"
+          onkeydown="if(event.key==='Enter')addFriend()"
+          style="flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;outline:none">
+        <button onclick="addFriend()" style="padding:9px 16px;border:none;background:var(--grad);color:#fff;border-radius:9px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">追加</button>
+      </div>
     </div>
   `;
+}
+
+function toggleFriendsAcc(){
+  const body  = document.getElementById('lvAccBody');
+  const arrow = document.getElementById('lvAccArrow');
+  if(!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if(arrow) arrow.classList.toggle('open', open);
 }
 
 function saveLunchName(){
