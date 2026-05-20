@@ -47,7 +47,37 @@
   --topbar-h: calc(52px + env(safe-area-inset-top, 0px));
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+html { background: #1a1010; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  /* モバイルサイズで中央表示（PCでも電話サイズに） */
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,0,0,0.3);
+  overflow-x: hidden;
+}
+/* PC表示時の周辺装飾 */
+@media (min-width: 500px) {
+  html {
+    background: linear-gradient(135deg, #2a1818, #1a1010);
+    min-height: 100vh;
+  }
+}
+/* 固定要素もモバイル幅に合わせる */
+.bottom-nav, .topbar, #beRealOverlay, .sheet-overlay,
+#commentOverlay, #areaBlockedOverlay {
+  max-width: 430px;
+  left: 50% !important;
+  transform: translateX(-50%);
+}
+@media (min-width: 500px){
+  .bottom-nav { right: auto !important; width: 430px; }
+}
 
 /* ── TOP BAR ── */
 .topbar {
@@ -4224,7 +4254,8 @@ function distKm(lat1, lng1, lat2, lng2) {
 
 // ─── 早稲田エリア ジオフェンス ──────────────────────────────
 const WASEDA_CENTER = { lat: 35.7087, lng: 139.7196 };
-const WASEDA_RADIUS_KM = 1.8;
+// 【デバッグ用】本番は 1.8、実験中は 50（東京全域カバー）
+const WASEDA_RADIUS_KM = 50;
 let _bereal_geo = null;
 let _bereal_caption = '';        // 撮影後に入力するキャプション
 let _bereal_blobs = null;        // 撮影済みblob一時保持
