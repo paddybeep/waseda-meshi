@@ -5066,6 +5066,7 @@ async function uploadStorePhoto(storeId, input){
     // 新スタンプ計算（エリア内+5 / エリア外+1、ランチ時×2）
     const gained = _calcStamps({ isStorePost: true });
     _addStamps(s.id, gained);
+    _addStars(gained); // ⭐累計に加算
     _showStampGain(gained, _isPostInWasedaArea());
     // フィードロック解除（24h）
     _recordPostAndUnlock();
@@ -8677,6 +8678,7 @@ async function uploadFreePhoto(blobs){
     // 新スタンプ計算（エリア内+3 / エリア外+1、ランチ時×2）
     const gained = _calcStamps({ isStorePost: false });
     _addStamps('__free__', gained);
+    _addStars(gained); // ⭐累計に加算
     _showStampGain(gained, _isPostInWasedaArea());
     _recordPostAndUnlock();
     _updateMyAreaStatus(true);
@@ -8871,6 +8873,210 @@ function _isLunchTime(){
 }
 
 function _lunchMultiplier(){ return _isLunchTime() ? 2 : 1; }
+
+// ─── ⭐スタンプ累計 + 単位 + クーポン制度 ─────────────────────
+// localStorage キー:
+//   wm_stars_total           ... 累計獲得スター数（減らない）
+//   wm_stars_balance         ... 単位交換に使える残高
+//   wm_units_last_claim_date ... 最後にクーポン獲得した日(YYYY-MM-DD)
+//   wm_coupons               ... 所持クーポン JSON配列
+
+function _getStars(){ return parseInt(localStorage.getItem('wm_stars_balance') || '0', 10); }
+function _getStarsTotal(){ return parseInt(localStorage.getItem('wm_stars_total') || '0', 10); }
+function _addStars(n){
+  const bal = _getStars() + n;
+  const tot = _getStarsTotal() + n;
+  localStorage.setItem('wm_stars_balance', String(bal));
+  localStorage.setItem('wm_stars_total', String(tot));
+  _renderStarBadge();
+  _renderClaimButton();
+}
+function _spendStars(n){
+  const bal = _getStars();
+  if (bal < n) return false;
+  localStorage.setItem('wm_stars_balance', String(bal - n));
+  return true;
+}
+
+// 1日1枚制限
+function _canClaimUnitToday(){
+  if (_getStars() < 10) return false;
+  const last = localStorage.getItem('wm_units_last_claim_date') || '';
+  return last !== _today();
+}
+function _today(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// クーポン獲得（1単位 = 10⭐消費）
+function _claimUnit(){
+  if (!_canClaimUnitToday()){
+    if (_getStars() < 10) { showToast('⭐が足りません（あと' + (10 - _getStars()) + '個）'); return; }
+    showToast('今日はもう獲得しました。明日また！');
+    return;
+  }
+  if (!_spendStars(10)) return;
+  // ランダムクーポンを発行
+  const coupon = _generateRandomCoupon();
+  const list = _getCoupons();
+  list.push(coupon);
+  localStorage.setItem('wm_coupons', JSON.stringify(list));
+  localStorage.setItem('wm_units_last_claim_date', _today());
+  _renderStarBadge();
+  _renderClaimButton();
+  _renderCoupons();
+  _showCouponEarnedSheet(coupon);
+}
+
+const _COUPON_TEMPLATES = [
+  { type:'discount', name:'餃子1皿 無料', emoji:'🥟', desc:'対象店舗で餃子1皿サービス' },
+  { type:'discount', name:'ラーメン100円OFF', emoji:'🍜', desc:'対象店舗のラーメン代から100円引き' },
+  { type:'discount', name:'コーヒー1杯 無料', emoji:'☕', desc:'対象カフェでコーヒー1杯サービス' },
+  { type:'discount', name:'定食100円OFF', emoji:'🍱', desc:'対象店舗の定食代から100円引き' },
+  { type:'discount', name:'大盛り無料', emoji:'🍚', desc:'対象店舗で大盛り無料' },
+  { type:'discount', name:'唐揚げ1個サービス', emoji:'🍗', desc:'対象店舗で唐揚げ1個追加' },
+];
+function _generateRandomCoupon(){
+  const t = _COUPON_TEMPLATES[Math.floor(Math.random() * _COUPON_TEMPLATES.length)];
+  return {
+    id: 'c' + Date.now() + Math.floor(Math.random()*1000),
+    ...t,
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3日後
+    used: false
+  };
+}
+
+function _getCoupons(){
+  try { return JSON.parse(localStorage.getItem('wm_coupons') || '[]'); }
+  catch(e){ return []; }
+}
+function _getActiveCoupons(){
+  const now = Date.now();
+  return _getCoupons().filter(c => !c.used && c.expiresAt > now);
+}
+function _useCoupon(id){
+  const list = _getCoupons();
+  const idx = list.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  if (!confirm('このクーポンを使用しますか？')) return;
+  list[idx].used = true;
+  list[idx].usedAt = Date.now();
+  localStorage.setItem('wm_coupons', JSON.stringify(list));
+  _renderCoupons();
+  showToast('🎉 クーポン使用済み');
+}
+function _expiredCleanup(){
+  const list = _getCoupons();
+  const fresh = list.filter(c => c.expiresAt > Date.now() - 7*24*60*60*1000);
+  if (fresh.length !== list.length){
+    localStorage.setItem('wm_coupons', JSON.stringify(fresh));
+  }
+}
+
+// ─── UI: ⭐バッジ / 獲得ボタン / クーポン一覧 ─────────────────
+function _renderStarBadge(){
+  let el = document.getElementById('starBadge');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'starBadge';
+    el.style.cssText = 'display:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1a1010;border-radius:24px;padding:5px 12px;font-size:12px;font-weight:800;margin:6px 16px 0;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(255,165,0,0.4);width:fit-content;cursor:pointer';
+    el.onclick = () => switchTab('lunch'); // メイトタブに飛ばす（クーポン一覧）
+    const home = document.getElementById('viewHome');
+    if (home){
+      const streak = document.getElementById('streakBadge');
+      if (streak && streak.parentNode === home) home.insertBefore(el, streak);
+      else home.insertBefore(el, home.firstChild);
+    }
+  }
+  const bal = _getStars();
+  const tot = _getStarsTotal();
+  el.innerHTML = `⭐ <span style="font-weight:900">${bal}</span> / 10 <span style="opacity:0.7;font-weight:600">（累計${tot}）</span>`;
+  el.style.display = 'flex';
+}
+
+function _renderClaimButton(){
+  let el = document.getElementById('claimUnitBtn');
+  if (!el){
+    el = document.createElement('button');
+    el.id = 'claimUnitBtn';
+    el.style.cssText = 'display:none;width:calc(100% - 32px);margin:10px 16px 4px;padding:14px;background:linear-gradient(135deg,#8C1515,#C9A84C);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(140,21,21,0.35);align-items:center;justify-content:center;gap:8px';
+    el.onclick = _claimUnit;
+    const home = document.getElementById('viewHome');
+    if (home){
+      const star = document.getElementById('starBadge');
+      if (star) home.insertBefore(el, star.nextSibling);
+      else home.insertBefore(el, home.firstChild);
+    }
+  }
+  if (_canClaimUnitToday()){
+    el.innerHTML = '🎓 ⭐10個で 1単位 獲得する（クーポンGET）';
+    el.style.display = 'flex';
+  } else if (_getStars() >= 10){
+    el.innerHTML = '✅ 今日は獲得済み（明日また）';
+    el.style.background = '#999';
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function _renderCoupons(){
+  let section = document.getElementById('couponSection');
+  if (!section){
+    section = document.createElement('div');
+    section.id = 'couponSection';
+    section.style.cssText = 'padding:8px 16px 16px';
+    section.innerHTML = `
+      <div style="font-size:13px;font-weight:800;color:var(--brand);margin-bottom:10px">🎟 マイクーポン</div>
+      <div id="couponList"></div>
+    `;
+    // メイト画面の最初に追加
+    const lvWrap = document.querySelector('#viewLunch .lv-wrap');
+    if (lvWrap) lvWrap.insertBefore(section, lvWrap.firstChild);
+  }
+  const list = document.getElementById('couponList');
+  if (!list) return;
+  const active = _getActiveCoupons();
+  if (!active.length){
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);padding:16px;font-size:12px;background:var(--bg);border-radius:12px">クーポンはまだありません<br>⭐10個溜めて獲得しよう！</div>`;
+    return;
+  }
+  list.innerHTML = active.map(c => {
+    const hoursLeft = Math.max(0, Math.floor((c.expiresAt - Date.now()) / (60*60*1000)));
+    const daysLeft = Math.floor(hoursLeft / 24);
+    const expireStr = daysLeft > 0 ? `あと${daysLeft}日` : `あと${hoursLeft}時間`;
+    return `
+      <div style="background:linear-gradient(135deg,#fff,#FFF8E7);border:2px dashed #FFA500;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px;flex-shrink:0">${c.emoji}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${c.desc}</div>
+          <div style="font-size:11px;color:#c0392b;font-weight:700;margin-top:3px">⏰ ${expireStr}</div>
+        </div>
+        <button onclick="_useCoupon('${c.id}')" style="background:var(--brand);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">使う</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function _showCouponEarnedSheet(c){
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:30px;animation:fadeIn 0.3s';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div style="background:linear-gradient(135deg,#fff,#FFF8E7);border-radius:24px;padding:30px 24px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.4);border:2px solid #FFD700">
+      <div style="font-size:14px;font-weight:800;color:#FFA500;margin-bottom:8px">🎓 1単位 獲得！</div>
+      <div style="font-size:64px;margin:8px 0">${c.emoji}</div>
+      <div style="font-size:22px;font-weight:900;color:#1a1010;margin-bottom:6px">${c.name}</div>
+      <div style="font-size:13px;color:var(--sub);margin-bottom:18px">${c.desc}</div>
+      <div style="font-size:11px;color:#c0392b;font-weight:700;margin-bottom:16px">⏰ 3日以内に使ってね</div>
+      <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:13px;background:var(--brand);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer">OK</button>
+    </div>
+  `;
+  document.body.appendChild(ov);
+}
 
 // ─── スタンプ計算ロジック（新仕様） ──────────────────────────
 // 基本: エリア内 店舗+5 / 自由+3 / エリア外 +1
@@ -9300,6 +9506,10 @@ _updateLunchBanner();       // ランチタイムバナー
 setInterval(_updateLunchBanner, 60*1000); // 1分ごとに更新
 _renderChanceBanner();      // チャンスタイムバナー
 setInterval(() => { _maybeTriggerChance(); _renderChanceBanner(); }, 60*1000); // 1分ごと
+_renderStarBadge();         // ⭐スタンプバッジ
+_renderClaimButton();       // 単位獲得ボタン
+_expiredCleanup();          // 期限切れクーポン掃除
+_renderCoupons();           // マイクーポン
 // 通知許可リクエスト（控えめに）
 if (typeof Notification !== 'undefined' && Notification.permission === 'default'){
   setTimeout(() => { try { Notification.requestPermission(); } catch(e){} }, 30*1000);
