@@ -2073,10 +2073,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     <div id="recruitList"></div>
   </div>
 
+  <!-- ④ 📸 最新の投稿フィード (F-1) -->
+  <div id="homeFeedSection" style="padding:8px 0 4px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin:0 16px 10px;display:flex;align-items:center;gap:6px">
+      📸 最新の投稿
+      <span id="homeFeedCount" style="font-size:11px;font-weight:600;color:var(--muted)"></span>
+    </div>
+    <div id="homeFeedList" style="display:flex;flex-direction:column;gap:12px;padding:0 12px"></div>
+    <div id="homeFeedEmpty" style="display:none;text-align:center;padding:20px 0;color:var(--muted);font-size:13px">
+      📷 まだ投稿がありません<br>📸ボタンから投稿してみよう！
+    </div>
+  </div>
+
   <!-- ③ 🟢 いま空いてる店 -->
   <div id="emptyStoresSection" style="padding:8px 16px 24px">
     <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:10px">🟢 いま空いてる店</div>
     <div id="emptyStoresList"></div>
+  </div>
+</div>
+
+<!-- ── コメントシート (F-3) ── -->
+<div id="commentOverlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.55)" onclick="closeCommentSheet(event)">
+  <div id="commentSheet" style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;max-height:75vh;display:flex;flex-direction:column">
+    <div style="padding:12px 16px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+      <div style="font-size:15px;font-weight:800">💬 コメント</div>
+      <button onclick="document.getElementById('commentOverlay').style.display='none'" style="background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer">✕</button>
+    </div>
+    <div id="commentList" style="overflow-y:auto;flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px"></div>
+    <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center">
+      <input id="commentInput" type="text" placeholder="コメントを入力…" maxlength="140"
+        style="flex:1;padding:10px 14px;border-radius:24px;border:1.5px solid var(--border);font-size:14px;outline:none;background:var(--bg)"
+        onkeydown="if(event.key==='Enter')submitComment()">
+      <button onclick="submitComment()" style="background:var(--brand);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">送信</button>
+    </div>
   </div>
 </div>
 
@@ -4968,7 +4997,10 @@ async function uploadStorePhoto(storeId, input){
       userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       reports: 0,
-      hidden: false
+      hidden: false,
+      likes: [],
+      likeCount: 0,
+      commentCount: 0
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
@@ -8521,7 +8553,10 @@ async function uploadFreePhoto(blobs){
       userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       reports: 0,
-      hidden: false
+      hidden: false,
+      likes: [],
+      likeCount: 0,
+      commentCount: 0
     });
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     renderFriendFeed();
@@ -8624,6 +8659,267 @@ async function reportFreePhoto(id){
   } catch(e){ console.warn(e); showToast('通報に失敗しました'); }
 }
 
+// ─── F-1: ホームBeRealフィード ────────────────────────────────
+let _homeFeedStoreItems = [];
+let _homeFeedFreeItems  = [];
+
+function _subscribeHomeFeed(){
+  const HOUR24 = 24 * 60 * 60 * 1000;
+
+  // photos コレクション（店舗投稿）
+  db.collection('photos')
+    .orderBy('timestamp','desc')
+    .limit(30)
+    .onSnapshot(snap => {
+      _homeFeedStoreItems = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (d.hidden) return;
+        const t = d.timestamp?.toMillis?.() || 0;
+        if (t && Date.now() - t > HOUR24) return;
+        _homeFeedStoreItems.push({ id: doc.id, _col: 'photos', ...d });
+      });
+      _renderHomeFeed();
+    }, err => console.warn('[HomeFeed/photos]', err));
+
+  // freePhotos コレクション（自由投稿）
+  db.collection('freePhotos')
+    .orderBy('timestamp','desc')
+    .limit(20)
+    .onSnapshot(snap => {
+      _homeFeedFreeItems = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (d.hidden) return;
+        const t = d.timestamp?.toMillis?.() || 0;
+        if (t && Date.now() - t > HOUR24) return;
+        _homeFeedFreeItems.push({ id: doc.id, _col: 'freePhotos', storeName: '自由投稿', ...d });
+      });
+      _renderHomeFeed();
+    }, err => console.warn('[HomeFeed/freePhotos]', err));
+}
+
+function _renderHomeFeed(){
+  const list = document.getElementById('homeFeedList');
+  const emptyEl = document.getElementById('homeFeedEmpty');
+  const countEl = document.getElementById('homeFeedCount');
+  if (!list) return;
+
+  // 統合→新着順
+  const merged = [..._homeFeedStoreItems, ..._homeFeedFreeItems]
+    .sort((a,b) => {
+      const ta = a.timestamp?.toMillis?.() || 0;
+      const tb = b.timestamp?.toMillis?.() || 0;
+      return tb - ta;
+    })
+    .slice(0, 20);
+
+  if (!merged.length){
+    list.innerHTML = '';
+    if(emptyEl) emptyEl.style.display = 'block';
+    if(countEl) countEl.textContent = '';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+  if(countEl) countEl.textContent = `${merged.length}件`;
+
+  list.innerHTML = merged.map(p => _homeFeedCardHTML(p)).join('');
+}
+
+function _homeFeedCardHTML(p){
+  const tsMs = p.timestamp?.toMillis?.() || 0;
+  const mins = Math.max(0, Math.floor((Date.now() - tsMs) / 60000));
+  const timeStr = tsMs === 0 ? '今'
+    : mins < 1 ? 'たった今'
+    : mins < 60 ? `${mins}分前`
+    : `${Math.floor(mins/60)}時間前`;
+
+  const isMine = p.userId === myCode;
+  const friendEntry = (typeof friendsList !== 'undefined') ? friendsList.find(f => f.code === p.userId) : null;
+  const userName = isMine ? 'あなた' : (friendEntry?.name || p.userId?.slice(0,6) || '匿名');
+  const avatarInitial = (userName || '?').charAt(0);
+  const showFront = _canSeeFront(p) && p.photoFrontURL;
+  const storeBadge = p.storeName && p.storeName !== '自由投稿'
+    ? `<span style="background:var(--brand-light);color:var(--brand);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:4px">🍽 ${p.storeName}</span>`
+    : `<span style="background:#EEF7FF;color:#1565C0;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:4px">📍 自由投稿</span>`;
+
+  const likeCount = p.likeCount || 0;
+  const liked = Array.isArray(p.likes) && p.likes.includes(myCode);
+  const commentCount = p.commentCount || 0;
+  const col = p._col || 'photos';
+  const hoursLeft = _hoursLeft(p);
+
+  return `
+  <div style="background:var(--surface);border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+    <!-- ヘッダー -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${avatarInitial}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;gap:2px">
+          ${userName}${storeBadge}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">${timeStr} ・ ⏰ あと${hoursLeft}</div>
+      </div>
+    </div>
+    <!-- 写真 -->
+    <div style="position:relative;background:#000;cursor:pointer" onclick="_openFeedPhoto('${encodeURIComponent(JSON.stringify({id:p.id,photoBackURL:p.photoBackURL||'',photoFrontURL:p.photoFrontURL||'',storeName:p.storeName||'',userId:p.userId||'',timestampMs:tsMs}))}')">
+      ${p.photoBackURL ? `<img src="${p.photoBackURL}" style="width:100%;display:block;max-height:320px;object-fit:cover">` : `<div style="width:100%;height:200px;display:flex;align-items:center;justify-content:center;font-size:40px;background:#111">🍱</div>`}
+      ${showFront ? `<img src="${p.photoFrontURL}" style="position:absolute;top:10px;right:10px;width:68px;height:68px;border-radius:12px;border:2.5px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">` : ''}
+    </div>
+    <!-- アクション行 (F-2 いいね / F-3 コメント) -->
+    <div style="display:flex;align-items:center;gap:4px;padding:8px 14px">
+      <button onclick="toggleLike('${p.id}','${col}')" style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 6px;display:flex;align-items:center;gap:4px;color:${liked?'#e74c3c':'var(--muted)'}" title="いいね">
+        ${liked ? '❤️' : '🤍'}
+        <span style="font-size:12px;font-weight:700;color:${liked?'#e74c3c':'var(--muted)'}">${likeCount > 0 ? likeCount : ''}</span>
+      </button>
+      <button onclick="openCommentSheet('${p.id}','${col}')" style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 6px;display:flex;align-items:center;gap:4px;color:var(--muted)" title="コメント">
+        💬
+        <span style="font-size:12px;font-weight:700;color:var(--muted)">${commentCount > 0 ? commentCount : ''}</span>
+      </button>
+      <div style="flex:1"></div>
+      ${isMine
+        ? `<button onclick="_deleteHomeFeedPost('${p.id}','${col}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">🗑 削除</button>`
+        : `<button onclick="_reportHomeFeedPost('${p.id}','${col}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">⚠️ 通報</button>`
+      }
+    </div>
+  </div>`;
+}
+
+function _openFeedPhoto(json){
+  try { openPhotoViewer(json); } catch(e){}
+}
+
+// ─── F-2: いいね ─────────────────────────────────────────────
+async function toggleLike(docId, col){
+  await ensureAnonymousAuth();
+  const uid = myCode || firebase.auth().currentUser?.uid;
+  if (!uid) return;
+  try {
+    const ref = db.collection(col).doc(docId);
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const likes = snap.data().likes || [];
+    const alreadyLiked = likes.includes(uid);
+    await ref.update({
+      likes: alreadyLiked
+        ? firebase.firestore.FieldValue.arrayRemove(uid)
+        : firebase.firestore.FieldValue.arrayUnion(uid),
+      likeCount: firebase.firestore.FieldValue.increment(alreadyLiked ? -1 : 1)
+    });
+  } catch(e){ console.warn('[toggleLike]', e); showToast('いいねに失敗しました'); }
+}
+
+// ─── F-3: コメント ────────────────────────────────────────────
+let _commentDocId = null;
+let _commentCol   = null;
+let _commentUnsub = null;
+
+function openCommentSheet(docId, col){
+  _commentDocId = docId;
+  _commentCol   = col;
+  document.getElementById('commentOverlay').style.display = 'block';
+  document.getElementById('commentList').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">読み込み中…</div>';
+  document.getElementById('commentInput').value = '';
+  _loadComments(docId, col);
+}
+
+function closeCommentSheet(e){
+  if (e && e.target !== document.getElementById('commentOverlay')) return;
+  document.getElementById('commentOverlay').style.display = 'none';
+  if (_commentUnsub){ _commentUnsub(); _commentUnsub = null; }
+}
+
+function _loadComments(docId, col){
+  if (_commentUnsub){ _commentUnsub(); _commentUnsub = null; }
+  try {
+    _commentUnsub = db.collection(col).doc(docId)
+      .collection('comments')
+      .orderBy('createdAt','asc')
+      .limit(50)
+      .onSnapshot(snap => {
+        const list = document.getElementById('commentList');
+        if (!list) return;
+        if (snap.empty){
+          list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">まだコメントがありません</div>';
+          return;
+        }
+        list.innerHTML = snap.docs.map(d => {
+          const c = d.data();
+          const isMine = (c.userId === myCode);
+          const name = isMine ? 'あなた' : (c.userName || c.userId?.slice(0,6) || '匿名');
+          const tsMs = c.createdAt?.toMillis?.() || 0;
+          const mins = tsMs ? Math.floor((Date.now()-tsMs)/60000) : 0;
+          const timeStr = mins < 1 ? 'たった今' : mins < 60 ? `${mins}分前` : `${Math.floor(mins/60)}時間前`;
+          return `
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${name.charAt(0)}</div>
+              <div style="flex:1;background:var(--bg);border-radius:12px;padding:8px 10px">
+                <div style="font-size:12px;font-weight:700;margin-bottom:2px">${name} <span style="font-weight:400;color:var(--muted)">${timeStr}</span></div>
+                <div style="font-size:13px;color:var(--text)">${c.text || ''}</div>
+              </div>
+              ${isMine ? `<button onclick="_deleteComment('${d.id}')" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;flex-shrink:0">🗑</button>` : ''}
+            </div>`;
+        }).join('');
+        list.scrollTop = list.scrollHeight;
+      }, err => console.warn('[Comments]', err));
+  } catch(e){ console.warn('[loadComments]', e); }
+}
+
+async function submitComment(){
+  const input = document.getElementById('commentInput');
+  const text = (input?.value || '').trim();
+  if (!text || !_commentDocId || !_commentCol) return;
+  await ensureAnonymousAuth();
+  const uid = myCode || firebase.auth().currentUser?.uid || 'anon';
+  const friendEntry = (typeof friendsList !== 'undefined') ? friendsList.find(f=>f.code===uid) : null;
+  const userName = uid === myCode ? (myLunchName || myCode) : (friendEntry?.name || uid.slice(0,6));
+  try {
+    await db.collection(_commentCol).doc(_commentDocId)
+      .collection('comments').add({
+        userId: uid,
+        userName: userName || '匿名',
+        text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    // コメント数カウント
+    await db.collection(_commentCol).doc(_commentDocId).update({
+      commentCount: firebase.firestore.FieldValue.increment(1)
+    });
+    if(input) input.value = '';
+  } catch(e){ console.warn('[submitComment]', e); showToast('コメントの送信に失敗しました'); }
+}
+
+async function _deleteComment(commentId){
+  if (!confirm('コメントを削除しますか？')) return;
+  try {
+    await db.collection(_commentCol).doc(_commentDocId)
+      .collection('comments').doc(commentId).delete();
+    await db.collection(_commentCol).doc(_commentDocId).update({
+      commentCount: firebase.firestore.FieldValue.increment(-1)
+    });
+  } catch(e){ console.warn('[deleteComment]', e); }
+}
+
+async function _deleteHomeFeedPost(docId, col){
+  if (!confirm('この投稿を削除しますか？')) return;
+  await ensureAnonymousAuth();
+  try { await db.collection(col).doc(docId).delete(); showToast('削除しました'); }
+  catch(e){ console.warn(e); showToast('削除に失敗しました'); }
+}
+
+async function _reportHomeFeedPost(docId, col){
+  if (!confirm('この投稿を通報しますか？')) return;
+  await ensureAnonymousAuth();
+  try {
+    await db.collection(col).doc(docId).update({ reports: firebase.firestore.FieldValue.increment(1) });
+    const fresh = await db.collection(col).doc(docId).get();
+    if (fresh.exists && (fresh.data().reports||0) >= 3){
+      await db.collection(col).doc(docId).update({ hidden: true });
+    }
+    showToast('通報しました');
+  } catch(e){ console.warn(e); showToast('通報に失敗しました'); }
+}
+
 // ─── INIT ────────────────────────────────────────────────────
 renderStories();
 renderFeed();
@@ -8634,6 +8930,7 @@ renderPersonRow();
 renderGenreGrid();
 subscribePhotos();
 subscribeFriendFeed();
+_subscribeHomeFeed();
 renderStreakBadge();
 maybeShowOnboarding();
 // 期限切れ写真クリーンアップ（自分の投稿のみ best-effort）
