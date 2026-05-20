@@ -2073,8 +2073,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     <div id="recruitList"></div>
   </div>
 
+  <!-- ランチタイムバナー -->
+  <div id="lunchTimeBanner" style="display:none;margin:6px 12px 0;background:linear-gradient(135deg,#FF6B35,#FFB347);color:#fff;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+    <div style="font-size:26px">🍱</div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:900">ランチタイム！</div>
+      <div style="font-size:11px;opacity:0.9">今投稿するとスタンプ×2 🎖️</div>
+    </div>
+    <div id="lunchTimeLeft" style="font-size:12px;font-weight:700;background:rgba(255,255,255,0.25);padding:4px 8px;border-radius:8px"></div>
+  </div>
+
   <!-- ④ 📸 最新の投稿フィード (F-1) -->
-  <div id="homeFeedSection" style="padding:8px 0 4px">
+  <div id="homeFeedSection" style="padding:8px 0 4px;position:relative">
     <div style="font-size:13px;font-weight:800;color:var(--text);margin:0 16px 10px;display:flex;align-items:center;gap:6px">
       📸 最新の投稿
       <span id="homeFeedCount" style="font-size:11px;font-weight:600;color:var(--muted)"></span>
@@ -2082,6 +2092,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sa
     <div id="homeFeedList" style="display:flex;flex-direction:column;gap:12px;padding:0 12px"></div>
     <div id="homeFeedEmpty" style="display:none;text-align:center;padding:20px 0;color:var(--muted);font-size:13px">
       📷 まだ投稿がありません<br>📸ボタンから投稿してみよう！
+    </div>
+    <!-- エリア外ロックオーバーレイ -->
+    <div id="feedLockOverlay" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(249,246,246,0.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:16px;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;min-height:200px">
+      <div style="font-size:44px;margin-bottom:10px">🔒</div>
+      <div style="font-size:17px;font-weight:900;margin-bottom:6px">エリア外から見るには投稿が必要</div>
+      <div style="font-size:13px;color:var(--sub);line-height:1.65;margin-bottom:18px">あなたも写真を投稿すると<br>みんなのワセ飯が見られます📸</div>
+      <button onclick="openBeRealCamera(null)" style="background:var(--grad);color:#fff;border:none;border-radius:14px;padding:14px 28px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(140,21,21,0.35)">
+        📸 投稿して解除する
+      </button>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">早稲田エリア内なら投稿なしで見れます</div>
     </div>
   </div>
 
@@ -4206,6 +4226,8 @@ function distKm(lat1, lng1, lat2, lng2) {
 const WASEDA_CENTER = { lat: 35.7087, lng: 139.7196 };
 const WASEDA_RADIUS_KM = 1.8;
 let _bereal_geo = null;
+let _bereal_caption = '';        // 撮影後に入力するキャプション
+let _bereal_blobs = null;        // 撮影済みblob一時保持
 
 function _isInWasedaArea(lat, lng){
   if (typeof lat !== 'number' || typeof lng !== 'number') return false;
@@ -4990,9 +5012,13 @@ async function uploadStorePhoto(storeId, input){
       storeName: s.name,
       lat: s.lat,
       lng: s.lng,
+      // 撮影時の位置（マップピン用）
+      postLat: _bereal_geo?.lat ?? null,
+      postLng: _bereal_geo?.lng ?? null,
       photoBackURL: backURL,
       photoFrontURL: frontURL,
       photoURL: backURL, // 後方互換
+      caption: (_bereal_caption || '').slice(0, 140), // Snapchat風テキスト
       userId: uid,
       userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -5000,13 +5026,19 @@ async function uploadStorePhoto(storeId, input){
       hidden: false,
       likes: [],
       likeCount: 0,
-      commentCount: 0
+      commentCount: 0,
+      lunchBadge: _isLunchTime() // ランチタイム投稿フラグ
     });
     console.log('[Upload] Firestore doc created:', docRef.id);
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     loadStorePhotos(storeId);
-    // 写真投稿はスタンプ +2（通常チェックイン +1 の倍率UP）
-    _addStamps(s.id, 2);
+    // 写真投稿はスタンプ +2、ランチタイムは×2
+    const mult = _lunchMultiplier();
+    _addStamps(s.id, 2 * mult);
+    // フィードロック解除（24h）
+    _recordPostAndUnlock();
+    // 投稿者の在エリア状態を更新
+    _updateMyAreaStatus(true);
     // 投稿完了シート：混雑更新・Mate募集・スタンプフィードバック
     showPostDoneSheet(s.id, false);
   } catch(err){
@@ -5356,9 +5388,12 @@ async function captureBeReal(){
     const sid = _bereal.storeId;
     closeBeRealCamera();
     if(!backBlob || !frontBlob){ showToast('キャプチャに失敗しました'); return; }
+    // 撮影後は必ず店舗確認＋キャプション入力画面を経由
+    // sidがあっても確認できるように
     if(sid){
-      showToast('📤 アップロード中...');
-      await uploadStorePhoto(sid, { back: backBlob, front: frontBlob });
+      // 既に店舗指定済み → 確認画面を出す
+      _bereal.storeId = sid;
+      openStorePickerForPhoto({ back: backBlob, front: frontBlob });
     } else {
       openStorePickerForPhoto({ back: backBlob, front: frontBlob });
     }
@@ -5373,25 +5408,65 @@ async function captureBeReal(){
 let _pendingPhotoBlob = null;
 function openStorePickerForPhoto(blobOrBlobs){
   _pendingPhotoBlob = blobOrBlobs;
+  _bereal_caption = ''; // リセット
   const list = document.getElementById('storePickerList');
   if(!list){ console.error('storePickerList not found'); return; }
-  const freeItem = `
-    <div onclick="pickStoreForPhoto('__free__')" style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:2px solid var(--brand);background:linear-gradient(135deg,#FFF5F5,#FFEAEA);cursor:pointer">
-      <div style="width:42px;height:42px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;flex-shrink:0">🍱</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:800;color:var(--brand)">店舗なしで投稿</div>
-        <div style="font-size:12px;color:var(--sub)">ワセ飯以外の食事もOK！メイトタブに表示されます</div>
+
+  // ① プレビュー＋キャプション入力
+  let previewURL = '';
+  if (blobOrBlobs?.back) previewURL = URL.createObjectURL(blobOrBlobs.back);
+  else if (blobOrBlobs instanceof Blob) previewURL = URL.createObjectURL(blobOrBlobs);
+  const previewHTML = `
+    <div style="padding:14px 18px;background:linear-gradient(180deg,#FAFAFA,#fff);border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        ${previewURL ? `<img src="${previewURL}" style="width:72px;height:72px;border-radius:12px;object-fit:cover;flex-shrink:0;border:2px solid var(--border)">` : ''}
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px">✏️ 一言コメント（任意）</div>
+          <textarea id="captionInput" placeholder="例: 麻婆豆腐がうますぎた..." maxlength="140"
+            style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;resize:none;height:54px;font-family:inherit;outline:none"
+            oninput="_bereal_caption=this.value"></textarea>
+        </div>
       </div>
     </div>`;
-  list.innerHTML = freeItem + STORES.map(s => `
-    <div onclick="pickStoreForPhoto(${s.id})" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer">
+
+  // ② GPS距離順にソート（_bereal_geo があれば）
+  let sortedStores = STORES.slice();
+  let nearestId = null;
+  if (_bereal_geo && typeof _bereal_geo.lat === 'number') {
+    sortedStores = sortedStores
+      .map(s => ({...s, _dist: distKm(_bereal_geo.lat, _bereal_geo.lng, s.lat, s.lng)}))
+      .sort((a,b) => a._dist - b._dist);
+    if (sortedStores[0]._dist < 0.15) nearestId = sortedStores[0].id; // 150m以内なら推奨
+  }
+
+  const recommendBadge = (id) => id === nearestId
+    ? `<span style="background:linear-gradient(135deg,#1a9645,#28a745);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;margin-left:6px">📍 ここ</span>`
+    : '';
+
+  const freeItem = `
+    <div onclick="pickStoreForPhoto('__free__')" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:2px solid var(--brand);background:linear-gradient(135deg,#FFF5F5,#FFEAEA);cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;flex-shrink:0">📍</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:var(--brand)">キャンパス・自由投稿</div>
+        <div style="font-size:11px;color:var(--sub)">学食・コンビニ・教室・その他</div>
+      </div>
+    </div>`;
+  const storeList = sortedStores.map(s => {
+    const distLabel = s._dist !== undefined
+      ? (s._dist < 1 ? `${Math.round(s._dist*1000)}m` : `${s._dist.toFixed(1)}km`)
+      : '';
+    const isNearest = s.id === nearestId;
+    return `
+    <div onclick="pickStoreForPhoto(${s.id})" style="display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);cursor:pointer;${isNearest?'background:#F0F8F4':''}">
       <div style="width:42px;height:42px;border-radius:50%;background:var(--brand-light,#fbe9e9);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${genreEmoji(s.genre||'その他')}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:15px;font-weight:700">${s.name}</div>
-        <div style="font-size:12px;color:var(--muted)">${s.genre||''} ・ ${s.area||s.addr||''}</div>
+        <div style="font-size:14px;font-weight:700;display:flex;align-items:center">${s.name}${recommendBadge(s.id)}</div>
+        <div style="font-size:11px;color:var(--muted)">${s.genre||''}${distLabel?' ・ '+distLabel:''}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+
+  list.innerHTML = previewHTML + freeItem + storeList;
   document.getElementById('storePickerOverlay').classList.add('open');
 }
 
@@ -8547,8 +8622,12 @@ async function uploadFreePhoto(blobs){
     await db.collection('freePhotos').add({
       photoBackURL: backURL,
       photoFrontURL: frontURL,
+      photoURL: backURL,
       lat: _bereal_geo?.lat || null,
       lng: _bereal_geo?.lng || null,
+      postLat: _bereal_geo?.lat ?? null,
+      postLng: _bereal_geo?.lng ?? null,
+      caption: (_bereal_caption || '').slice(0, 140),
       userId: uid,
       userIdAuth: firebase.auth().currentUser?.uid || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -8556,12 +8635,16 @@ async function uploadFreePhoto(blobs){
       hidden: false,
       likes: [],
       likeCount: 0,
-      commentCount: 0
+      commentCount: 0,
+      lunchBadge: _isLunchTime()
     });
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     renderFriendFeed();
-    // 店舗なし投稿はスタンプ +1
-    _addStamps('__free__', 1);
+    // 店舗なし投稿はスタンプ +1、ランチタイムは×2
+    const mult = _lunchMultiplier();
+    _addStamps('__free__', 1 * mult);
+    _recordPostAndUnlock();
+    _updateMyAreaStatus(true);
     // 投稿完了シート（混雑更新なし版）
     showPostDoneSheet(null, true);
   } catch(e){
@@ -8659,6 +8742,127 @@ async function reportFreePhoto(id){
   } catch(e){ console.warn(e); showToast('通報に失敗しました'); }
 }
 
+// ─── isInArea: 投稿者の在エリア状態管理 ────────────────────
+// 投稿者がエリア内にいるかどうかをFirestoreの userStatus に記録
+// アプリ起動・タブ切替時にGPSチェックして更新
+// フィード描画時に各投稿の投稿者の状態をチェック→エリア外の人の投稿は非表示
+let _userStatusCache = {};  // { userId: { isInArea: bool, lastChecked: ms } }
+let _myAreaStatus = null;   // 自分の最新状態
+
+async function _updateMyAreaStatus(forceInside){
+  // forceInside=true なら投稿直後など強制的にtrueにする
+  if (!myCode) return;
+  try {
+    let isInArea = forceInside === true ? true : null;
+    if (isInArea === null) {
+      // GPSチェック
+      const geo = await _checkInWasedaArea();
+      isInArea = geo.ok === true;
+    }
+    _myAreaStatus = isInArea;
+    await db.collection('userStatus').doc(myCode).set({
+      isInArea,
+      lastChecked: firebase.firestore.FieldValue.serverTimestamp(),
+      lastCheckedMs: Date.now()
+    }, { merge: true });
+    console.log('[isInArea]', myCode, isInArea);
+  } catch(e){ console.warn('[updateMyAreaStatus]', e); }
+}
+
+function _subscribeUserStatus(){
+  // 全ユーザーの状態を購読（最大100件、適宜絞る）
+  try {
+    db.collection('userStatus').onSnapshot(snap => {
+      _userStatusCache = {};
+      snap.forEach(doc => {
+        _userStatusCache[doc.id] = doc.data();
+      });
+      // フィード再描画
+      if(typeof _renderHomeFeed === 'function') _renderHomeFeed();
+    }, err => console.warn('[userStatus sub]', err));
+  } catch(e){ console.warn('[subUserStatus]', e); }
+}
+
+function _posterIsActive(userId){
+  if (!userId) return true;
+  if (userId === myCode) return true; // 自分の投稿は常に表示
+  const st = _userStatusCache[userId];
+  // 状態未登録なら表示（互換性）
+  if (!st) return true;
+  return st.isInArea === true;
+}
+
+// ─── エリア外ロック ──────────────────────────────────────────
+async function _initFeedAccess(){
+  // 24時間以内に投稿済みならすぐ解除
+  const last = parseInt(localStorage.getItem('wm_last_post_time') || '0');
+  if (last && Date.now() - last < 24 * 60 * 60 * 1000){
+    _unlockFeed(); return;
+  }
+  // GPS確認（エリア内なら無条件で解除）
+  try {
+    const geo = await _checkInWasedaArea();
+    if (geo.ok){ _unlockFeed(); return; }
+    // エリア外 + 未投稿 → ロック
+    _lockFeed();
+  } catch(e){
+    // GPS失敗時はロックしない（UX優先）
+    _unlockFeed();
+  }
+}
+
+function _unlockFeed(){
+  const ov = document.getElementById('feedLockOverlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function _lockFeed(){
+  const ov = document.getElementById('feedLockOverlay');
+  if (ov) ov.style.display = 'flex';
+}
+
+// 投稿成功時に呼ぶ（ロック解除 + タイムスタンプ保存）
+function _recordPostAndUnlock(){
+  localStorage.setItem('wm_last_post_time', String(Date.now()));
+  _unlockFeed();
+}
+
+// ─── ランチタイム ────────────────────────────────────────────
+function _isLunchTime(){
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  return (h === 11 && m >= 30) || h === 12 || h === 13 || (h === 14 && m === 0);
+}
+
+function _lunchMultiplier(){ return _isLunchTime() ? 2 : 1; }
+
+function _updateLunchBanner(){
+  const banner = document.getElementById('lunchTimeBanner');
+  const timeLeft = document.getElementById('lunchTimeLeft');
+  if (!banner) return;
+  if (_isLunchTime()){
+    banner.style.display = 'flex';
+    // 残り時間計算
+    const now = new Date();
+    const end = new Date(now); end.setHours(14,0,0,0);
+    const mins = Math.max(0, Math.round((end - now) / 60000));
+    if (timeLeft) timeLeft.textContent = mins > 0 ? `残り${mins}分` : '';
+  } else {
+    banner.style.display = 'none';
+    // ランチまでの時間表示（11:00〜11:30前）
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes();
+    if (h === 11 && m < 30){
+      banner.style.display = 'flex';
+      banner.style.background = 'linear-gradient(135deg,#888,#aaa)';
+      const minsTo = 30 - m;
+      if (timeLeft) timeLeft.textContent = `${minsTo}分後開始`;
+      const titleEl = banner.querySelector('div > div');
+      if (titleEl) titleEl.textContent = 'まもなくランチタイム';
+    }
+  }
+}
+
 // ─── F-1: ホームBeRealフィード ────────────────────────────────
 let _homeFeedStoreItems = [];
 let _homeFeedFreeItems  = [];
@@ -8705,8 +8909,21 @@ function _renderHomeFeed(){
   const countEl = document.getElementById('homeFeedCount');
   if (!list) return;
 
-  // 統合→新着順
+  // フレンドコード集合（自分含む）
+  const friendCodes = new Set([
+    myCode,
+    ...((typeof friendsList !== 'undefined' ? friendsList : []).map(f => f.code))
+  ]);
+
+  // 統合→フィルタ→新着順
   const merged = [..._homeFeedStoreItems, ..._homeFeedFreeItems]
+    .filter(p => {
+      // フレンド限定
+      if (!friendCodes.has(p.userId)) return false;
+      // 投稿者がエリア外なら非表示（自分の投稿はOK）
+      if (!_posterIsActive(p.userId)) return false;
+      return true;
+    })
     .sort((a,b) => {
       const ta = a.timestamp?.toMillis?.() || 0;
       const tb = b.timestamp?.toMillis?.() || 0;
@@ -8748,6 +8965,12 @@ function _homeFeedCardHTML(p){
   const commentCount = p.commentCount || 0;
   const col = p._col || 'photos';
   const hoursLeft = _hoursLeft(p);
+  const lunchBadge = p.lunchBadge
+    ? `<span style="background:linear-gradient(135deg,#FF6B35,#FFB347);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;margin-left:4px">🍱 LUNCH</span>`
+    : '';
+  const captionHTML = p.caption
+    ? `<div style="position:absolute;left:14px;right:14px;bottom:14px;background:rgba(0,0,0,0.6);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;line-height:1.4;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);max-height:60px;overflow:hidden">${(p.caption||'').replace(/</g,'&lt;')}</div>`
+    : '';
 
   return `
   <div style="background:var(--surface);border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.05)">
@@ -8756,15 +8979,16 @@ function _homeFeedCardHTML(p){
       <div style="width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${avatarInitial}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;gap:2px">
-          ${userName}${storeBadge}
+          ${userName}${storeBadge}${lunchBadge}
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:1px">${timeStr} ・ ⏰ あと${hoursLeft}</div>
       </div>
     </div>
     <!-- 写真 -->
-    <div style="position:relative;background:#000;cursor:pointer" onclick="_openFeedPhoto('${encodeURIComponent(JSON.stringify({id:p.id,photoBackURL:p.photoBackURL||'',photoFrontURL:p.photoFrontURL||'',storeName:p.storeName||'',userId:p.userId||'',timestampMs:tsMs}))}')">
+    <div style="position:relative;background:#000;cursor:pointer" onclick="_openFeedPhoto('${encodeURIComponent(JSON.stringify({id:p.id,photoBackURL:p.photoBackURL||'',photoFrontURL:p.photoFrontURL||'',storeName:p.storeName||'',userId:p.userId||'',timestampMs:tsMs,caption:p.caption||''}))}')">
       ${p.photoBackURL ? `<img src="${p.photoBackURL}" style="width:100%;display:block;max-height:320px;object-fit:cover">` : `<div style="width:100%;height:200px;display:flex;align-items:center;justify-content:center;font-size:40px;background:#111">🍱</div>`}
       ${showFront ? `<img src="${p.photoFrontURL}" style="position:absolute;top:10px;right:10px;width:68px;height:68px;border-radius:12px;border:2.5px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">` : ''}
+      ${captionHTML}
     </div>
     <!-- アクション行 (F-2 いいね / F-3 コメント) -->
     <div style="display:flex;align-items:center;gap:4px;padding:8px 14px">
@@ -8931,6 +9155,19 @@ renderGenreGrid();
 subscribePhotos();
 subscribeFriendFeed();
 _subscribeHomeFeed();
+_subscribeUserStatus();
+_initFeedAccess();          // エリア外ロック判定
+_updateMyAreaStatus();      // 自分の在エリア状態をFirestoreに反映
+_updateLunchBanner();       // ランチタイムバナー
+setInterval(_updateLunchBanner, 60*1000); // 1分ごとに更新
+// アプリ復帰時に再チェック
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    _initFeedAccess();
+    _updateMyAreaStatus();
+    _updateLunchBanner();
+  }
+});
 renderStreakBadge();
 maybeShowOnboarding();
 // 期限切れ写真クリーンアップ（自分の投稿のみ best-effort）
