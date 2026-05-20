@@ -5063,13 +5063,16 @@ async function uploadStorePhoto(storeId, input){
     console.log('[Upload] Firestore doc created:', docRef.id);
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     loadStorePhotos(storeId);
-    // 写真投稿はスタンプ +2、ランチタイムは×2
-    const mult = _lunchMultiplier();
-    _addStamps(s.id, 2 * mult);
+    // 新スタンプ計算（エリア内+5 / エリア外+1、ランチ時×2）
+    const gained = _calcStamps({ isStorePost: true });
+    _addStamps(s.id, gained);
+    _showStampGain(gained, _isPostInWasedaArea());
     // フィードロック解除（24h）
     _recordPostAndUnlock();
     // 投稿者の在エリア状態を更新
     _updateMyAreaStatus(true);
+    // チャンスタイム消費
+    _consumeChanceTime();
     // 投稿完了シート：混雑更新・Mate募集・スタンプフィードバック
     showPostDoneSheet(s.id, false);
   } catch(err){
@@ -8671,11 +8674,13 @@ async function uploadFreePhoto(blobs){
     });
     try { _updateStreak(); renderStreakBadge(); } catch(e){}
     renderFriendFeed();
-    // 店舗なし投稿はスタンプ +1、ランチタイムは×2
-    const mult = _lunchMultiplier();
-    _addStamps('__free__', 1 * mult);
+    // 新スタンプ計算（エリア内+3 / エリア外+1、ランチ時×2）
+    const gained = _calcStamps({ isStorePost: false });
+    _addStamps('__free__', gained);
+    _showStampGain(gained, _isPostInWasedaArea());
     _recordPostAndUnlock();
     _updateMyAreaStatus(true);
+    _consumeChanceTime();
     // 投稿完了シート（混雑更新なし版）
     showPostDoneSheet(null, true);
   } catch(e){
@@ -8866,6 +8871,108 @@ function _isLunchTime(){
 }
 
 function _lunchMultiplier(){ return _isLunchTime() ? 2 : 1; }
+
+// ─── スタンプ計算ロジック（新仕様） ──────────────────────────
+// 基本: エリア内 店舗+5 / 自由+3 / エリア外 +1
+// ランチタイム(11:30-14:00) で ×2
+// チャンスタイム発動中は エリア外でもエリア内扱い
+function _calcStamps({ isStorePost = false, isCheckin = false } = {}){
+  // チェックインは常に+1（ランチタイム時のみ×2）
+  if (isCheckin) return 1 * _lunchMultiplier();
+
+  // 撮影地点がエリア内か判定
+  const inArea = _isPostInWasedaArea() || _isChanceTimeActive();
+  let base;
+  if (inArea){
+    base = isStorePost ? 5 : 3;
+  } else {
+    base = 1;
+  }
+  return base * _lunchMultiplier();
+}
+
+function _isPostInWasedaArea(){
+  // _bereal_geo は撮影時のGPS。なければエリア外扱い
+  if (!_bereal_geo || typeof _bereal_geo.lat !== 'number') return false;
+  return _isInWasedaArea(_bereal_geo.lat, _bereal_geo.lng);
+}
+
+// チャンスタイム（1日1回ランダム発動・2分間）
+function _isChanceTimeActive(){
+  const until = parseInt(localStorage.getItem('wm_chance_until') || '0');
+  return until > Date.now();
+}
+
+function _activateChanceTime(){
+  // 2分間のチャンス
+  const until = Date.now() + 2 * 60 * 1000;
+  localStorage.setItem('wm_chance_until', String(until));
+  localStorage.setItem('wm_chance_used_date', new Date().toDateString());
+  _renderChanceBanner();
+}
+
+function _consumeChanceTime(){
+  if (_isChanceTimeActive()){
+    localStorage.removeItem('wm_chance_until');
+    _renderChanceBanner();
+  }
+}
+
+function _renderChanceBanner(){
+  let el = document.getElementById('chanceBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'chanceBanner';
+    el.style.cssText = 'display:none;margin:6px 12px 0;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1a1010;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;animation:pulse 1.5s infinite;box-shadow:0 4px 16px rgba(255,165,0,0.5)';
+    el.onclick = () => openBeRealCamera(null);
+    const home = document.getElementById('viewHome');
+    if (home) home.insertBefore(el, home.firstChild);
+  }
+  if (_isChanceTimeActive()){
+    const left = parseInt(localStorage.getItem('wm_chance_until') || '0') - Date.now();
+    const secs = Math.max(0, Math.floor(left/1000));
+    el.innerHTML = `
+      <div style="font-size:24px">⚡</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:900">チャンスタイム発動中！</div>
+        <div style="font-size:11px;opacity:0.85">今投稿するとエリア外でも +5獲得！</div>
+      </div>
+      <div style="font-size:14px;font-weight:800;background:rgba(255,255,255,0.4);padding:4px 10px;border-radius:8px">${secs}秒</div>
+    `;
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// スタンプ獲得トースト
+function _showStampGain(amount, inArea){
+  const lunchMark = _isLunchTime() ? '🍱' : '';
+  const chance = _isChanceTimeActive() ? '⚡' : '';
+  const areaMark = inArea ? '' : ' (エリア外)';
+  showToast(`🎖️ +${amount}スタンプ獲得${areaMark} ${lunchMark}${chance}`);
+}
+
+// 1分ごとにチャンスタイムをチェック（ランダム発動）
+function _maybeTriggerChance(){
+  // 1日1回のみ
+  const usedDate = localStorage.getItem('wm_chance_used_date') || '';
+  if (usedDate === new Date().toDateString()) return;
+  // 既に発動中なら何もしない
+  if (_isChanceTimeActive()) return;
+  // 1日のうち、ランチ時間以外でランダムに発動
+  // 11時〜21時の間、10%/分 (期待値 数時間に1回)
+  const h = new Date().getHours();
+  if (h < 11 || h >= 21) return;
+  if (_isLunchTime()) return; // ランチ時はランチ倍率使ってもらう
+  if (Math.random() < 0.02){ // 2%/分 → 平均50分待ち
+    _activateChanceTime();
+    // 通知（バナーを目立たせる）
+    if (Notification && Notification.permission === 'granted'){
+      new Notification('⚡ チャンスタイム！', { body: '今から2分以内に投稿すると +5スタンプ獲得！' });
+    }
+  }
+}
 
 function _updateLunchBanner(){
   const banner = document.getElementById('lunchTimeBanner');
@@ -9191,6 +9298,12 @@ _initFeedAccess();          // エリア外ロック判定
 _updateMyAreaStatus();      // 自分の在エリア状態をFirestoreに反映
 _updateLunchBanner();       // ランチタイムバナー
 setInterval(_updateLunchBanner, 60*1000); // 1分ごとに更新
+_renderChanceBanner();      // チャンスタイムバナー
+setInterval(() => { _maybeTriggerChance(); _renderChanceBanner(); }, 60*1000); // 1分ごと
+// 通知許可リクエスト（控えめに）
+if (typeof Notification !== 'undefined' && Notification.permission === 'default'){
+  setTimeout(() => { try { Notification.requestPermission(); } catch(e){} }, 30*1000);
+}
 // アプリ復帰時に再チェック
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
